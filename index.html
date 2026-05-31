@@ -102,22 +102,25 @@
       border-radius: 999px;
     }
 
-    .reprint-suggest-wrap {
-      position: relative;
+    .app-modal-overlay {
+      align-items: center;
+      justify-content: center;
+      padding:
+        max(1rem, env(safe-area-inset-top, 0px))
+        1rem
+        max(1rem, env(safe-area-inset-bottom, 0px));
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .reprint-suggest-list {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: calc(100% + 4px);
-      z-index: 60;
-      max-height: 240px;
+      max-height: 11rem;
       overflow-y: auto;
+      overflow-x: hidden;
       border: 1px solid #e0e0e0;
       border-radius: 0.75rem;
       background: #fff;
-      box-shadow: 0 12px 32px rgba(34, 34, 34, 0.12);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
     }
 
     .reprint-suggest-item {
@@ -1757,6 +1760,15 @@
       document.getElementById(modalId).classList.add('hidden');
     }
 
+    function scrollModalFieldIntoView(element) {
+      if (!element) {
+        return;
+      }
+      window.setTimeout(function () {
+        element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 280);
+    }
+
     function showGateScreen() {
       document.getElementById('scan-panel').classList.add('hidden');
       document.getElementById('start-scan-button').classList.remove('hidden');
@@ -2124,7 +2136,10 @@
       document.getElementById('admin-reprint-mode-input').addEventListener('click', function () { setReprintInputMode('input'); });
       document.getElementById('admin-reprint-mode-select').addEventListener('click', function () { setReprintInputMode('select'); });
       document.getElementById('admin-reprint-input').addEventListener('input', showReprintSuggestions);
-      document.getElementById('admin-reprint-input').addEventListener('focus', showReprintSuggestions);
+      document.getElementById('admin-reprint-input').addEventListener('focus', function (event) {
+        showReprintSuggestions();
+        scrollModalFieldIntoView(event.target);
+      });
       document.getElementById('admin-reprint-input').addEventListener('blur', function () {
         hideReprintSuggestions(180);
       });
@@ -2148,6 +2163,9 @@
         }
       });
       document.getElementById('admin-login-button').addEventListener('click', submitAdminLogin);
+      document.getElementById('admin-pin-input').addEventListener('focus', function (event) {
+        scrollModalFieldIntoView(event.target);
+      });
       document.getElementById('admin-login-cancel-button').addEventListener('click', function () { closeModal('admin-login-modal'); });
       document.getElementById('admin-register-button').addEventListener('click', submitBatteryRegister);
       document.getElementById('admin-register-cancel-button').addEventListener('click', function () { closeModal('admin-register-modal'); });
@@ -2447,8 +2465,9 @@
     <div class="mx-auto max-w-lg rounded-2xl px-5 py-4 text-base font-semibold shadow-2xl"></div>
   </div>
 
-  <div id="admin-login-modal" class="fixed inset-0 z-50 hidden flex items-end justify-center bg-gray-900/40 px-4 pb-6 backdrop-blur-sm sm:items-center">
-    <div class="brand-card w-full max-w-md rounded-2xl p-6">
+  <div id="admin-login-modal" class="app-modal-overlay fixed inset-0 z-50 hidden flex bg-gray-900/40 backdrop-blur-sm">
+    <div class="brand-card modal-scroll-shell w-full max-w-md rounded-2xl">
+      <div class="modal-scroll-body">
       <p class="section-label text-sm font-semibold text-marine">Admin</p>
       <h2 class="mt-1 text-2xl font-bold text-gray-900">관리자 로그인</h2>
       <p class="mt-2 text-sm text-gray-500">PIN 로그인 후 배터리 등록과 QR 생성이 가능합니다. (초기 PIN: 8842)</p>
@@ -2458,11 +2477,13 @@
         <button id="admin-login-cancel-button" type="button" class="w-full rounded-xl border border-gray-300 px-4 py-4 text-base font-semibold text-gray-600">취소</button>
         <button id="admin-login-button" type="button" class="brand-btn-primary w-full rounded-xl px-4 py-4 text-base font-bold text-white">로그인</button>
       </div>
+      </div>
     </div>
   </div>
 
-  <div id="admin-pin-modal" class="fixed inset-0 z-50 hidden flex items-end justify-center bg-gray-900/40 px-4 pb-6 backdrop-blur-sm sm:items-center">
-    <div class="brand-card w-full max-w-md rounded-2xl p-6">
+  <div id="admin-pin-modal" class="app-modal-overlay fixed inset-0 z-50 hidden flex bg-gray-900/40 backdrop-blur-sm">
+    <div class="brand-card modal-scroll-shell modal-scroll-shell--tall w-full max-w-md rounded-2xl">
+      <div class="modal-scroll-body">
       <p class="section-label text-sm font-semibold text-marine">Settings</p>
       <h2 class="mt-1 text-2xl font-bold text-gray-900">관리자 설정</h2>
       <label for="admin-old-pin-input" class="mt-5 block text-sm font-semibold text-gray-700">현재 PIN</label>
@@ -2474,11 +2495,13 @@
       <button id="admin-pin-change-button" type="button" class="brand-btn-primary mt-5 w-full rounded-xl px-4 py-4 text-base font-bold text-white">PIN 변경</button>
       <button id="admin-logout-button" type="button" class="mt-3 w-full rounded-xl border border-gray-300 px-4 py-4 text-base font-semibold text-gray-600">로그아웃</button>
       <button id="admin-pin-cancel-button" type="button" class="mt-3 w-full rounded-xl px-4 py-3 text-sm text-gray-500">닫기</button>
+      </div>
     </div>
   </div>
 
-  <div id="admin-reprint-modal" class="fixed inset-0 z-50 hidden flex items-end justify-center bg-gray-900/40 px-4 pb-6 backdrop-blur-sm sm:items-center">
-    <div class="brand-card w-full max-w-md rounded-2xl p-6">
+  <div id="admin-reprint-modal" class="app-modal-overlay fixed inset-0 z-50 hidden flex bg-gray-900/40 backdrop-blur-sm">
+    <div class="brand-card modal-scroll-shell modal-scroll-shell--tall w-full max-w-md rounded-2xl">
+      <div class="modal-scroll-body">
       <p class="section-label text-sm font-semibold text-marine">Reprint</p>
       <h2 class="mt-1 text-2xl font-bold text-gray-900">QR 재출력</h2>
       <p class="mt-2 text-sm leading-6 text-gray-500">
@@ -2490,7 +2513,7 @@
         <button id="admin-reprint-mode-input" type="button" class="rounded-xl border border-marine bg-marine-light px-3 py-2.5 text-sm font-semibold text-marine">직접 입력</button>
         <button id="admin-reprint-mode-select" type="button" class="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700">목록 선택</button>
       </div>
-      <div id="admin-reprint-input-wrap" class="reprint-suggest-wrap mt-2">
+      <div id="admin-reprint-input-wrap" class="mt-2">
         <input
           id="admin-reprint-input"
           type="text"
@@ -2498,8 +2521,8 @@
           class="w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-lg uppercase outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"
           placeholder="예: LPO-7S-35-001"
         >
-        <div id="admin-reprint-suggestions" class="reprint-suggest-list hidden"></div>
       </div>
+      <div id="admin-reprint-suggestions" class="reprint-suggest-list mt-2 hidden"></div>
       <div id="admin-reprint-select-wrap" class="mt-2 hidden">
         <select
           id="admin-reprint-select"
@@ -2510,10 +2533,11 @@
         <button id="admin-reprint-cancel-button" type="button" class="w-full rounded-xl border border-gray-300 px-4 py-4 text-base font-semibold text-gray-600">취소</button>
         <button id="admin-reprint-button" type="button" class="brand-btn-primary w-full rounded-xl px-4 py-4 text-base font-bold text-white">조회하고 QR 만들기</button>
       </div>
+      </div>
     </div>
   </div>
 
-  <div id="admin-register-modal" class="fixed inset-0 z-50 hidden flex items-end justify-center bg-gray-900/40 px-4 pb-4 backdrop-blur-sm sm:items-center sm:pb-6">
+  <div id="admin-register-modal" class="app-modal-overlay fixed inset-0 z-50 hidden flex bg-gray-900/40 backdrop-blur-sm">
     <div class="brand-card modal-scroll-shell w-full max-w-md rounded-2xl">
       <div class="modal-scroll-body">
       <p class="section-label text-sm font-semibold text-marine">Register</p>
@@ -2578,7 +2602,7 @@
     </div>
   </div>
 
-  <div id="admin-label-modal" class="fixed inset-0 z-50 hidden flex items-end justify-center bg-gray-900/40 px-4 pb-4 backdrop-blur-sm sm:items-center sm:pb-6">
+  <div id="admin-label-modal" class="app-modal-overlay fixed inset-0 z-50 hidden flex bg-gray-900/40 backdrop-blur-sm">
     <div class="brand-card modal-scroll-shell modal-scroll-shell--tall w-full max-w-md rounded-2xl">
       <div class="modal-scroll-body">
       <p class="section-label text-sm font-semibold text-marine">Label</p>
