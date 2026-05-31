@@ -1007,12 +1007,14 @@ function parseRequestParams_(e) {
     email: '',
     rowIndex: '',
     batteryId: '',
+    name: '',
   };
 
   if (e && e.parameter) {
     params.action = String(e.parameter.action || '').trim();
     params.id = String(e.parameter.id || '').trim();
     params.worker = String(e.parameter.worker || '').trim();
+    params.name = String(e.parameter.name || '').trim();
     params.model = String(e.parameter.model || '').trim();
     params.startDate = String(e.parameter.startDate || '').trim();
     params.maxCycles = String(e.parameter.maxCycles || '').trim();
