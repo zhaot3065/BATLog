@@ -1225,6 +1225,7 @@ function doGet(e) {
         ? {
           active: true,
           blockType: appearanceBlock.blockType,
+          rowIndex: appearanceBlock.report.rowIndex,
           timestamp: appearanceBlock.report.timestamp,
           worker: appearanceBlock.report.worker,
           issues: appearanceBlock.report.issues,

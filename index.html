@@ -287,7 +287,7 @@
 </head>
 <body class="min-h-screen text-gray-800">
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxB4upxeB9euf8BZohTPUiaUrDf9NlxAlFk9OqAAOrrVGmCV81yJngUOYoLEfkjz9AH5w/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwFZs9_URCmOyK45D50yuf45sqzB0Y4nYz0V_Qm_dZVHI-Jx44Y0g1eJokIdBnyPJtXfw/exec';
 
     // 시트 D열(MaxCycles)이 비어 있을 때 사용할 기본 수명. 0이면 기본값 없음.
     const DEFAULT_MAX_CYCLES = 300;
@@ -407,6 +407,7 @@
     let batteryListFetchPromise = null;
     let reprintInputMode = 'input';
     let reprintSuggestHideTimer = null;
+    let lastBatteryCardData = null;
 
     function hasAdminSession() {
       return sessionStorage.getItem(ADMIN_SESSION_KEY) === '1';
@@ -443,6 +444,10 @@
       adminBtn.classList.toggle('border-marine', loggedIn);
       adminBtn.classList.toggle('bg-marine-light', loggedIn);
       adminBtn.classList.toggle('text-marine', loggedIn);
+
+      if (lastBatteryCardData) {
+        applyAppearanceReportBlock(lastBatteryCardData);
+      }
     }
 
     function buildQrPayloadText(batteryId) {
@@ -1540,7 +1545,11 @@
         }
 
         showToast(actionLabel + ' 처리되었습니다.', 'success');
-        await loadAdminAppearanceReports();
+        if (batteryId && batteryId === currentBatteryId) {
+          await loadBattery(currentBatteryId);
+        } else {
+          await loadAdminAppearanceReports();
+        }
       } catch (err) {
         showToast(err.message || actionLabel + ' 처리에 실패했습니다.', 'error');
       } finally {
@@ -2522,9 +2531,19 @@
       const titleEl = document.getElementById('appearance-block-title');
       const leadEl = document.getElementById('appearance-block-lead');
       const messageEl = document.getElementById('appearance-block-message');
+      const adminActions = document.getElementById('appearance-block-admin-actions');
 
       if (batteryAppearanceBlocked) {
         const isDisposed = report.blockType === 'disposed';
+        const showAdminActions = hasAdminSession()
+          && !isDisposed
+          && Number(report.rowIndex) >= 2;
+
+        if (showAdminActions) {
+          adminActions.classList.remove('hidden');
+        } else {
+          adminActions.classList.add('hidden');
+        }
 
         titleEl.textContent = isDisposed ? '폐기처리된 배터리' : '외관 이상 보고된 배터리';
         leadEl.textContent = isDisposed
@@ -2569,9 +2588,11 @@
       alertBox.classList.add('hidden');
       actionCard.classList.remove('hidden');
       blockedRescanButton.classList.add('hidden');
+      adminActions.classList.add('hidden');
     }
 
     function renderBatteryCard(data) {
+      lastBatteryCardData = data;
       currentBatteryId = data.id;
       currentBatteryModel = data.model || '-';
       currentBatteryStartDate = data.startDate || '-';
@@ -3080,6 +3101,20 @@
       });
       document.getElementById('rescan-button').addEventListener('click', returnToScanScreen);
       document.getElementById('appearance-block-rescan-button').addEventListener('click', returnToScanScreen);
+      document.getElementById('appearance-block-resolve-button').addEventListener('click', function () {
+        const report = lastBatteryCardData && lastBatteryCardData.appearanceReport;
+        if (!report || !report.rowIndex || !currentBatteryId) {
+          return;
+        }
+        submitAppearanceReportAction(Number(report.rowIndex), currentBatteryId, 'resolveappearance');
+      });
+      document.getElementById('appearance-block-dispose-button').addEventListener('click', function () {
+        const report = lastBatteryCardData && lastBatteryCardData.appearanceReport;
+        if (!report || !report.rowIndex || !currentBatteryId) {
+          return;
+        }
+        submitAppearanceReportAction(Number(report.rowIndex), currentBatteryId, 'disposeappearance');
+      });
       document.getElementById('success-modal-close').addEventListener('click', returnToScanScreen);
       document.getElementById('retry-button').addEventListener('click', function () {
         const payload = getUrlPayload();
@@ -3304,6 +3339,25 @@
           <p id="appearance-block-title" class="text-lg font-bold text-[#eb3949]">외관 이상 보고된 배터리</p>
           <p id="appearance-block-lead" class="mt-2 text-sm font-semibold leading-6 text-red-900">이 배터리는 사용·충전하지 마세요. 관리자 점검 후 해제됩니다.</p>
           <pre id="appearance-block-message" class="mt-3 whitespace-pre-wrap rounded-xl bg-white/80 p-3 text-sm leading-6 text-gray-800"></pre>
+          <div id="appearance-block-admin-actions" class="mt-4 hidden">
+            <p class="text-xs font-semibold text-gray-600">관리자 조치</p>
+            <div class="mt-2 grid grid-cols-2 gap-2">
+              <button
+                id="appearance-block-resolve-button"
+                type="button"
+                class="rounded-xl border border-marine/30 bg-marine-light px-3 py-3 text-sm font-bold text-marine"
+              >
+                조치완료
+              </button>
+              <button
+                id="appearance-block-dispose-button"
+                type="button"
+                class="rounded-xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm font-bold text-white"
+              >
+                폐기
+              </button>
+            </div>
+          </div>
           <button
             id="appearance-block-rescan-button"
             type="button"
