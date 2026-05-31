@@ -57,6 +57,58 @@
       margin-top: 0;
     }
 
+    .appearance-toggle-btn {
+      border: 2px solid #e0e0e0;
+      background: #fff;
+      color: #4b5563;
+      transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+    }
+
+    .appearance-toggle-btn.is-active-normal {
+      border-color: #00a8d4;
+      background: #e6f7fb;
+      color: #008eb3;
+      font-weight: 700;
+    }
+
+    .appearance-toggle-btn.is-active-issue {
+      border-color: #eb3949;
+      background: #fef2f2;
+      color: #c62828;
+      font-weight: 700;
+    }
+
+    .appearance-issue-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.625rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      background: #fff;
+    }
+
+    .appearance-issue-option.is-critical {
+      border-color: #fecaca;
+      background: #fff7f7;
+    }
+
+    .appearance-issue-option input {
+      margin-top: 0.2rem;
+      width: 1.1rem;
+      height: 1.1rem;
+      accent-color: #eb3949;
+    }
+
+    #submit-button.is-report-mode {
+      background: linear-gradient(180deg, #eb3949 0%, #d62839 100%);
+      box-shadow: 0 8px 20px rgba(235, 57, 73, 0.22);
+    }
+
+    #submit-button.is-report-mode:hover {
+      opacity: 0.92;
+    }
+
     .section-label {
       letter-spacing: 0.08em;
     }
@@ -235,7 +287,7 @@
 </head>
 <body class="min-h-screen text-gray-800">
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbwGaKx1_jnPF6hQhxQfbFLgkH45AmfX9JsLdr-yU28gOQ-pSYDJmr6nrea5fKqjY2aSxg/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzPBlgWF6cM1OhP2oliQQkCbRkckua3TFHJvoPjtICevVM4sltEoDCXu8_6GJ4mWvSeHg/exec';
 
     // 시트 D열(MaxCycles)이 비어 있을 때 사용할 기본 수명. 0이면 기본값 없음.
     const DEFAULT_MAX_CYCLES = 300;
@@ -322,11 +374,19 @@
       { value: '기타', label: '기타' },
     ];
 
+    const APPEARANCE_ISSUES = [
+      { id: 'swelling', label: '스웰링 (배터리 부풀음)', critical: true },
+      { id: 'dent', label: '찍힘·파손' },
+      { id: 'leak', label: '누액·이상 냄새' },
+      { id: 'connector', label: '커넥터 손상' },
+    ];
+
     let html5QrCode = null;
     let scanWanted = false;
     let resumeScanTimer = null;
     let scanNeedsResume = false;
     let scanStarting = false;
+    let appearanceStatus = 'normal';
     let currentBatteryId = null;
     let currentBatteryModel = '';
     let currentBatteryStartDate = '';
@@ -1784,6 +1844,13 @@
       ['gate-screen', 'scan-screen', 'battery-screen', 'error-screen'].forEach(function (id) {
         document.getElementById(id).classList.toggle('hidden', id !== screenId);
       });
+      updatePageHeroVisibility();
+    }
+
+    function updatePageHeroVisibility() {
+      const scanActive = document.getElementById('scan-panel').classList.contains('scan-panel-active');
+      const onBattery = !document.getElementById('battery-screen').classList.contains('hidden');
+      document.getElementById('page-hero').classList.toggle('hidden', scanActive || onBattery);
     }
 
     function lockBodyScroll() {
@@ -2008,13 +2075,41 @@
       }
     }
 
-    function showSuccessModal(summary) {
+    function showSuccessModal(summary, options) {
+      options = options || {};
+      const isReport = !!options.isReport;
+      const iconWrap = document.getElementById('success-modal-icon-wrap');
+      const heading = document.getElementById('success-modal-heading');
+      const description = document.getElementById('success-modal-description');
+      const cycleSection = document.getElementById('success-modal-cycle-section');
+      const issuesSection = document.getElementById('success-modal-issues-section');
+
+      heading.textContent = isReport ? '외관 이상 보고 완료' : '기록 완료';
+      description.textContent = isReport
+        ? '충전 기록은 저장되지 않았습니다. 관리자 확인이 필요합니다.'
+        : '충전 기록이 정상적으로 저장되었습니다.';
+      iconWrap.className = isReport
+        ? 'mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-3xl text-[#eb3949]'
+        : 'mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-marine-light text-3xl text-marine';
+      iconWrap.textContent = isReport ? '!' : '✓';
+      cycleSection.classList.toggle('hidden', isReport);
+      issuesSection.classList.toggle('hidden', !isReport);
+
       document.getElementById('success-modal-id').textContent = summary.id;
       document.getElementById('success-modal-model').textContent = summary.model || '-';
       document.getElementById('success-modal-start-date').textContent = summary.startDate || '-';
       document.getElementById('success-modal-worker').textContent = summary.worker || '-';
       document.getElementById('success-modal-cycle-count').textContent = String(summary.cycleCount);
-      updateLifecycleUI(summary.cycleCount, summary.maxCycles);
+      document.getElementById('success-modal-issues').textContent = summary.issues || '-';
+
+      if (!isReport) {
+        updateLifecycleUI(summary.cycleCount, summary.maxCycles);
+      } else {
+        const successAlert = document.getElementById('success-modal-lifecycle-alert');
+        successAlert.classList.add('hidden');
+        successAlert.textContent = '';
+      }
+
       document.getElementById('success-modal').classList.remove('hidden');
       lockBodyScroll();
     }
@@ -2044,9 +2139,9 @@
     function setScanUiActive(active) {
       document.getElementById('scan-panel').classList.toggle('hidden', !active);
       document.getElementById('scan-panel').classList.toggle('scan-panel-active', active);
-      document.getElementById('page-hero').classList.toggle('hidden', active);
       document.getElementById('gate-intro-card').classList.toggle('hidden', active);
       document.getElementById('scan-intro-card').classList.toggle('hidden', active);
+      updatePageHeroVisibility();
 
       if (!active) {
         document.getElementById('start-scan-button').classList.remove('hidden');
@@ -2091,6 +2186,60 @@
       }
     }
 
+    function resetAppearanceForm() {
+      appearanceStatus = 'normal';
+      document.querySelectorAll('.appearance-issue-input').forEach(function (input) {
+        input.checked = false;
+      });
+      document.getElementById('appearance-note').value = '';
+      setAppearanceStatus('normal');
+    }
+
+    function setAppearanceStatus(status) {
+      appearanceStatus = status === 'issue' ? 'issue' : 'normal';
+      const normalBtn = document.getElementById('appearance-normal-btn');
+      const issueBtn = document.getElementById('appearance-issue-btn');
+      const detailPanel = document.getElementById('appearance-detail-panel');
+
+      normalBtn.classList.toggle('is-active-normal', appearanceStatus === 'normal');
+      issueBtn.classList.toggle('is-active-issue', appearanceStatus === 'issue');
+      detailPanel.classList.toggle('hidden', appearanceStatus !== 'issue');
+      updatePrimaryActionButton();
+    }
+
+    function isAppearanceIssueMode() {
+      return appearanceStatus === 'issue';
+    }
+
+    function getSelectedAppearanceIssueIds() {
+      return Array.prototype.slice.call(document.querySelectorAll('.appearance-issue-input:checked'))
+        .map(function (input) { return input.value; });
+    }
+
+    function getSelectedAppearanceIssueLabels() {
+      const ids = getSelectedAppearanceIssueIds();
+      return APPEARANCE_ISSUES
+        .filter(function (issue) { return ids.indexOf(issue.id) >= 0; })
+        .map(function (issue) { return issue.label.split(' (')[0]; });
+    }
+
+    function updatePrimaryActionButton() {
+      const button = document.getElementById('submit-button');
+      if (isSubmitting) {
+        return;
+      }
+
+      if (isAppearanceIssueMode()) {
+        button.textContent = '외관 이상 보고하기';
+        button.classList.remove('brand-btn-primary');
+        button.classList.add('is-report-mode');
+      } else {
+        button.textContent = '충전 기록하기 (+1 사이클)';
+        button.classList.add('brand-btn-primary');
+        button.classList.remove('is-report-mode');
+      }
+    }
+
     function renderBatteryCard(data) {
       currentBatteryId = data.id;
       currentBatteryModel = data.model || '-';
@@ -2106,6 +2255,7 @@
 
       const workerSelect = document.getElementById('worker-select');
       populateWorkerSelect(workerSelect);
+      resetAppearanceForm();
 
       resetSubmitButton();
       showScreen('battery-screen');
@@ -2133,16 +2283,81 @@
       isSubmitting = false;
       const button = document.getElementById('submit-button');
       button.disabled = false;
-      button.textContent = '충전 기록하기 (+1 사이클)';
       button.classList.remove('opacity-60', 'cursor-not-allowed');
+      updatePrimaryActionButton();
     }
 
     function disableSubmitButton() {
       isSubmitting = true;
       const button = document.getElementById('submit-button');
       button.disabled = true;
-      button.textContent = '기록 중...';
+      button.textContent = isAppearanceIssueMode() ? '보고 중...' : '기록 중...';
       button.classList.add('opacity-60', 'cursor-not-allowed');
+    }
+
+    async function handlePrimaryAction() {
+      if (isAppearanceIssueMode()) {
+        await submitAppearanceReport();
+      } else {
+        await submitChargingLog();
+      }
+    }
+
+    async function submitAppearanceReport() {
+      if (isSubmitting) {
+        return;
+      }
+
+      const worker = document.getElementById('worker-select').value.trim();
+      if (!worker) {
+        alert('작업자를 선택해 주세요');
+        return;
+      }
+
+      const issueIds = getSelectedAppearanceIssueIds();
+      const note = document.getElementById('appearance-note').value.trim();
+      if (!issueIds.length && !note) {
+        alert('이상 항목을 선택하거나 특이사항을 입력해 주세요');
+        return;
+      }
+
+      disableSubmitButton();
+      showLoading(true, '외관 이상 보고 저장 중...');
+
+      try {
+        const formData = new URLSearchParams();
+        formData.append('action', 'reportappearance');
+        formData.append('id', currentBatteryId);
+        formData.append('worker', worker);
+        formData.append('issues', issueIds.join(','));
+        formData.append('note', note);
+
+        const response = await fetch(getActiveApiUrl(), {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || '외관 이상 보고에 실패했습니다.');
+        }
+
+        saveRememberedWorker(worker);
+        showSuccessModal({
+          id: currentBatteryId,
+          model: currentBatteryModel,
+          startDate: currentBatteryStartDate,
+          worker: worker,
+          cycleCount: Number(data.cycleCount) || currentCycleCount,
+          issues: data.issues || getSelectedAppearanceIssueLabels().join(', '),
+        }, { isReport: true });
+      } catch (err) {
+        showToast(err.message || '외관 이상 보고에 실패했습니다.', 'error');
+        resetSubmitButton();
+      } finally {
+        showLoading(false);
+      }
     }
 
     async function submitChargingLog() {
@@ -2476,7 +2691,13 @@
       document.getElementById('gate-scan-button').addEventListener('click', startQrScanner);
       document.getElementById('start-scan-button').addEventListener('click', startQrScanner);
       document.getElementById('scan-close-button').addEventListener('click', cancelQrScanner);
-      document.getElementById('submit-button').addEventListener('click', submitChargingLog);
+      document.getElementById('submit-button').addEventListener('click', handlePrimaryAction);
+      document.getElementById('appearance-normal-btn').addEventListener('click', function () {
+        setAppearanceStatus('normal');
+      });
+      document.getElementById('appearance-issue-btn').addEventListener('click', function () {
+        setAppearanceStatus('issue');
+      });
       document.getElementById('rescan-button').addEventListener('click', returnToScanScreen);
       document.getElementById('success-modal-close').addEventListener('click', returnToScanScreen);
       document.getElementById('retry-button').addEventListener('click', function () {
@@ -2657,63 +2878,112 @@
         </div>
       </section>
 
-      <section id="battery-screen" class="hidden space-y-5">
-        <div class="brand-card rounded-2xl p-6">
-          <div class="mb-5 flex items-center justify-between">
+      <section id="battery-screen" class="hidden space-y-4">
+        <div class="brand-card rounded-2xl p-4">
+          <div class="mb-3 flex items-center justify-between gap-3">
             <div>
-              <p class="section-label text-sm font-semibold text-marine">Battery Info</p>
-              <h2 class="mt-1 text-2xl font-bold text-gray-900">배터리 정보</h2>
+              <p class="section-label text-xs font-semibold text-marine">Battery Info</p>
+              <h2 class="text-xl font-bold text-gray-900">배터리 정보</h2>
             </div>
-            <span id="battery-status-badge" class="rounded-full bg-marine-light px-3 py-1 text-sm font-semibold text-marine">정상</span>
+            <span id="battery-status-badge" class="rounded-full bg-marine-light px-3 py-1 text-xs font-semibold text-marine">정상</span>
           </div>
 
-          <div id="lifecycle-alert" class="mb-4 hidden rounded-xl border p-4">
-            <p id="lifecycle-alert-title" class="text-base font-bold"></p>
-            <p id="lifecycle-alert-message" class="mt-2 text-sm leading-6"></p>
+          <div id="lifecycle-alert" class="mb-3 hidden rounded-xl border p-3">
+            <p id="lifecycle-alert-title" class="text-sm font-bold"></p>
+            <p id="lifecycle-alert-message" class="mt-1 text-sm leading-6"></p>
           </div>
 
-          <dl class="grid grid-cols-1 gap-3">
-            <div class="rounded-xl bg-gray-50 p-4">
-              <dt class="text-sm text-gray-500">배터리 ID</dt>
-              <dd id="battery-id" class="mt-1 text-2xl font-bold tracking-wide text-gray-900">-</dd>
+          <dl class="grid grid-cols-1 gap-2">
+            <div class="rounded-xl bg-gray-50 p-3">
+              <dt class="text-xs text-gray-500">배터리 ID</dt>
+              <dd id="battery-id" class="mt-0.5 text-xl font-bold tracking-wide text-gray-900">-</dd>
             </div>
-            <div class="rounded-xl bg-gray-50 p-4">
-              <dt class="text-sm text-gray-500">모델명</dt>
-              <dd id="battery-model" class="mt-1 text-xl font-semibold text-gray-900">-</dd>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="rounded-xl bg-gray-50 p-3">
+                <dt class="text-xs text-gray-500">모델명</dt>
+                <dd id="battery-model" class="mt-0.5 text-base font-semibold text-gray-900">-</dd>
+              </div>
+              <div class="rounded-xl bg-gray-50 p-3">
+                <dt class="text-xs text-gray-500">사용 시작일</dt>
+                <dd id="battery-start-date" class="mt-0.5 text-base font-semibold text-gray-900">-</dd>
+              </div>
             </div>
-            <div class="rounded-xl bg-gray-50 p-4">
-              <dt class="text-sm text-gray-500">사용 시작일</dt>
-              <dd id="battery-start-date" class="mt-1 text-xl font-semibold text-gray-900">-</dd>
+            <div id="battery-cycle-box" class="rounded-xl bg-marine-light p-3 ring-1 ring-marine/20">
+              <dt class="text-xs font-semibold text-marine">현재 충전 사이클 수</dt>
+              <dd id="battery-cycle-count" class="mt-0.5 text-3xl font-black text-marine">0</dd>
             </div>
-            <div id="battery-cycle-box" class="rounded-xl bg-marine-light p-4 ring-1 ring-marine/20">
-              <dt class="text-sm font-semibold text-marine">현재 충전 사이클 수</dt>
-              <dd id="battery-cycle-count" class="mt-1 text-4xl font-black text-marine">0</dd>
-            </div>
-            <div class="rounded-xl bg-gray-50 p-4">
-              <dt class="text-sm text-gray-500">권장 수명 (최대 사이클)</dt>
-              <dd id="battery-max-cycles" class="mt-1 text-xl font-semibold text-gray-900">-</dd>
+            <div class="rounded-xl bg-gray-50 p-3">
+              <dt class="text-xs text-gray-500">권장 수명 (최대 사이클)</dt>
+              <dd id="battery-max-cycles" class="mt-0.5 text-base font-semibold text-gray-900">-</dd>
             </div>
           </dl>
         </div>
 
-        <div class="brand-card rounded-2xl p-6">
-          <p class="section-label text-sm font-semibold text-marine">Worker</p>
-          <label for="worker-select" class="mt-1 block text-xl font-bold text-gray-900">작업자 선택</label>
+        <div class="brand-card rounded-2xl p-4">
+          <p class="section-label text-xs font-semibold text-marine">Inspection</p>
+          <p class="mt-0.5 text-lg font-bold text-gray-900">외관 점검</p>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <button
+              id="appearance-normal-btn"
+              type="button"
+              class="appearance-toggle-btn rounded-xl px-3 py-3 text-sm font-semibold"
+            >
+              🟢 외관 정상
+            </button>
+            <button
+              id="appearance-issue-btn"
+              type="button"
+              class="appearance-toggle-btn rounded-xl px-3 py-3 text-sm font-semibold"
+            >
+              🔴 이상 있음
+            </button>
+          </div>
+
+          <div id="appearance-detail-panel" class="mt-3 hidden space-y-2">
+            <p class="text-sm font-semibold text-[#eb3949]">이상 배터리는 충전하지 마세요. 보고만 가능합니다.</p>
+            <div class="space-y-2">
+              <label class="appearance-issue-option is-critical">
+                <input type="checkbox" class="appearance-issue-input" value="swelling">
+                <span class="text-sm leading-5 text-gray-800">⚠️ 스웰링 (배터리 부풀음)</span>
+              </label>
+              <label class="appearance-issue-option">
+                <input type="checkbox" class="appearance-issue-input" value="dent">
+                <span class="text-sm leading-5 text-gray-800">찍힘·파손</span>
+              </label>
+              <label class="appearance-issue-option">
+                <input type="checkbox" class="appearance-issue-input" value="leak">
+                <span class="text-sm leading-5 text-gray-800">누액·이상 냄새</span>
+              </label>
+              <label class="appearance-issue-option">
+                <input type="checkbox" class="appearance-issue-input" value="connector">
+                <span class="text-sm leading-5 text-gray-800">커넥터 손상</span>
+              </label>
+            </div>
+            <input
+              id="appearance-note"
+              type="text"
+              maxlength="200"
+              placeholder="특이사항 (선택)"
+              class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none focus:border-[#eb3949] focus:ring-2 focus:ring-[#eb3949]/15"
+            >
+          </div>
+
+          <label for="worker-select" class="mt-4 block text-lg font-bold text-gray-900">작업자 선택</label>
           <select
             id="worker-select"
-            class="mt-4 w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-lg text-gray-900 outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"
+            class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-lg text-gray-900 outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"
           ></select>
 
           <button
             id="submit-button"
-            class="brand-btn-primary mt-5 w-full rounded-xl px-6 py-5 text-xl font-bold text-white"
+            class="brand-btn-primary mt-4 w-full rounded-xl px-6 py-4 text-lg font-bold text-white"
           >
             충전 기록하기 (+1 사이클)
           </button>
 
           <button
             id="rescan-button"
-            class="mt-3 w-full rounded-xl border border-gray-300 bg-white px-6 py-4 text-base font-semibold text-gray-600 transition hover:bg-gray-50"
+            class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-6 py-3.5 text-base font-semibold text-gray-600 transition hover:bg-gray-50"
           >
             다른 배터리 스캔
           </button>
@@ -2931,12 +3201,12 @@
   <div id="success-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-gray-900/40 px-4 backdrop-blur-sm">
     <div class="brand-card w-full max-w-md rounded-2xl p-6">
       <div class="text-center">
-        <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-marine-light text-3xl text-marine">
+        <div id="success-modal-icon-wrap" class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-marine-light text-3xl text-marine">
           ✓
         </div>
         <p class="section-label text-sm font-semibold text-marine">Complete</p>
-        <h2 class="mt-1 text-2xl font-bold text-gray-900">기록 완료</h2>
-        <p class="mt-2 text-base text-gray-600">충전 기록이 정상적으로 저장되었습니다.</p>
+        <h2 id="success-modal-heading" class="mt-1 text-2xl font-bold text-gray-900">기록 완료</h2>
+        <p id="success-modal-description" class="mt-2 text-base text-gray-600">충전 기록이 정상적으로 저장되었습니다.</p>
       </div>
 
       <dl class="mt-6 space-y-3">
@@ -2956,7 +3226,11 @@
           <dt class="text-sm text-gray-500">기록 작업자</dt>
           <dd id="success-modal-worker" class="mt-1 text-lg font-semibold text-gray-900">-</dd>
         </div>
-        <div class="rounded-xl bg-marine-light px-4 py-3 ring-1 ring-marine/20">
+        <div id="success-modal-issues-section" class="hidden rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+          <dt class="text-sm font-semibold text-[#eb3949]">외관 이상 항목</dt>
+          <dd id="success-modal-issues" class="mt-1 text-base font-semibold text-gray-900">-</dd>
+        </div>
+        <div id="success-modal-cycle-section" class="rounded-xl bg-marine-light px-4 py-3 ring-1 ring-marine/20">
           <dt class="text-sm font-semibold text-marine">최종 충전 사이클 수</dt>
           <dd id="success-modal-cycle-count" class="mt-1 text-4xl font-black text-marine">0</dd>
         </div>

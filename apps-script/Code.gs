@@ -3,6 +3,7 @@
  *
  * Batteries: A=BatteryID, B=Model, C=StartDate, D=MaxCycles
  * ChargingLogs: A=Timestamp, B=BatteryID, C=Worker
+ * AppearanceReports: A=Timestamp, B=BatteryID, C=Worker, D=Issues, E=Note
  *
  * Battery ID 형식: {CHEM}-{N}S-{CAP}-{SEQ}
  * 예) LPO-6S-22-001  (LiPo, 6S, 22000mAh, 1번)
@@ -276,6 +277,18 @@ function getSpreadsheet_() {
   return { batteriesSheet, logsSheet };
 }
 
+function getAppearanceReportsSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('AppearanceReports');
+
+  if (!sheet) {
+    sheet = ss.insertSheet('AppearanceReports');
+    sheet.appendRow(['Timestamp', 'BatteryID', 'Worker', 'Issues', 'Note']);
+  }
+
+  return sheet;
+}
+
 function parseRequestParams_(e) {
   const params = {
     action: '',
@@ -293,6 +306,8 @@ function parseRequestParams_(e) {
     optionType: '',
     value: '',
     label: '',
+    issues: '',
+    note: '',
   };
 
   if (e && e.parameter) {
@@ -311,6 +326,8 @@ function parseRequestParams_(e) {
     params.optionType = String(e.parameter.optionType || '').trim();
     params.value = String(e.parameter.value || '').trim();
     params.label = String(e.parameter.label || '').trim();
+    params.issues = String(e.parameter.issues || '').trim();
+    params.note = String(e.parameter.note || '').trim();
   }
 
   if (e && e.postData && e.postData.contents) {
@@ -428,6 +445,71 @@ function handleRegisterBattery_(params) {
   });
 }
 
+function formatAppearanceIssues_(issuesParam) {
+  const labels = {
+    swelling: '스웰링',
+    dent: '찍힘·파손',
+    leak: '누액·이상 냄새',
+    connector: '커넥터 손상',
+  };
+
+  return String(issuesParam || '')
+    .split(',')
+    .map(function (part) { return part.trim(); })
+    .filter(function (part) { return part; })
+    .map(function (id) { return labels[id] || id; })
+    .join(', ');
+}
+
+function handleAppearanceReport_(params) {
+  const batteryId = normalizeBatteryId_(params.id);
+  const worker = String(params.worker || '').trim();
+  const issuesText = formatAppearanceIssues_(params.issues);
+  const note = String(params.note || '').trim();
+
+  if (!batteryId) {
+    return jsonResponse_({ success: false, error: 'Battery ID가 필요합니다.' });
+  }
+
+  if (!worker) {
+    return jsonResponse_({ success: false, error: '작업자 이름이 필요합니다.' });
+  }
+
+  if (!issuesText && !note) {
+    return jsonResponse_({ success: false, error: '이상 항목 또는 특이사항을 입력해 주세요.' });
+  }
+
+  const sheets = getSpreadsheet_();
+  const battery = findBattery_(sheets.batteriesSheet, batteryId);
+
+  if (!battery) {
+    return jsonResponse_({ success: false, error: '등록되지 않은 배터리 ID입니다.' });
+  }
+
+  const now = new Date();
+  getAppearanceReportsSheet_().appendRow([
+    formatTimestamp_(now),
+    batteryId,
+    worker,
+    issuesText,
+    note,
+  ]);
+
+  return jsonResponse_({
+    success: true,
+    report: true,
+    id: batteryId,
+    worker: worker,
+    issues: issuesText,
+    note: note,
+    timestamp: formatTimestamp_(now),
+    model: battery.model,
+    startDate: battery.startDate,
+    maxCycles: battery.maxCycles,
+    cycleCount: countCycles_(sheets.logsSheet, batteryId),
+  });
+}
+
 function handleChargingLog_(params) {
   const batteryId = normalizeBatteryId_(params.id);
   const worker = String(params.worker || '').trim();
@@ -533,6 +615,10 @@ function doPost(e) {
 
     if (params.action === 'addregisteroption') {
       return handleAddRegisterOption_(params);
+    }
+
+    if (params.action === 'reportappearance') {
+      return handleAppearanceReport_(params);
     }
 
     return handleChargingLog_(params);
