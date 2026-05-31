@@ -135,6 +135,9 @@
     .modal-scroll-shell {
       max-height: 90vh;
       overflow: hidden;
+      min-width: 0;
+      width: calc(100% - 0.5rem);
+      max-width: 28rem;
     }
 
     .modal-scroll-shell--tall {
@@ -143,6 +146,7 @@
 
     .modal-scroll-body {
       max-height: inherit;
+      overflow-x: hidden;
       overflow-y: auto;
       overscroll-behavior: contain;
       touch-action: pan-y;
@@ -174,6 +178,24 @@
         max(1rem, env(safe-area-inset-bottom, 0px));
       overflow: hidden;
       overscroll-behavior: none;
+    }
+
+    /* iOS Safari: type=date has a large intrinsic width and overflows modals */
+    .batlog-date-field {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    @supports (-webkit-touch-callout: none) {
+      .batlog-date-field {
+        -webkit-min-logical-width: 0;
+        min-height: 3rem;
+      }
     }
 
     html.modal-open,
@@ -289,7 +311,7 @@
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbwawUb3WzwQGS_bAHdTFwgIcgs1lYA7-eiRfe-I52xp93QCJ4G2BTjmXCzUbg5dOY8szA/exec';
 
-    // 시트 D열(MaxCycles)이 비어 있을 때 사용할 기본 수명. 0이면 기본값 없음.
+    // MaxCycles 기본값(시트 비어 있을 때). 0이면 기본값 없음.
     const DEFAULT_MAX_CYCLES = 300;
     const REGISTER_FORM_DEFAULTS = {
       chem: 'LPO',
@@ -3853,8 +3875,8 @@
   </div>
 
   <div id="admin-register-modal" class="app-modal-overlay fixed inset-0 z-50 hidden flex bg-gray-900/40 backdrop-blur-sm">
-    <div class="brand-card modal-scroll-shell w-full max-w-md rounded-2xl">
-      <div class="modal-scroll-body">
+    <div class="brand-card modal-scroll-shell rounded-2xl">
+      <div class="modal-scroll-body min-w-0">
       <p class="section-label text-sm font-semibold text-marine">Register</p>
       <h2 class="mt-1 text-2xl font-bold text-gray-900">배터리 등록</h2>
       <p class="mt-2 text-sm text-gray-500">항목별 드롭다운에서 선택합니다. 목록에 없으면 맨 아래 "+ 직접 추가…"로 등록하면 이후 선택지에 남습니다.</p>
@@ -3889,20 +3911,22 @@
         </div>
       </div>
 
-      <label for="admin-battery-id" class="mt-4 block text-sm font-semibold text-gray-700">BatteryID (A열)</label>
+      <label for="admin-battery-id" class="mt-4 block text-sm font-semibold text-gray-700">BatteryID</label>
       <div class="mt-2 flex gap-2">
         <input id="admin-battery-id" type="text" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-lg uppercase outline-none focus:border-marine focus:ring-2 focus:ring-marine/20">
         <button id="admin-next-id-button" type="button" class="shrink-0 rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm font-semibold text-gray-700">자동</button>
       </div>
       <p id="admin-id-rule-preview" class="mt-2 text-xs leading-5 text-gray-500">ID 규칙: {종류}-{S}S-{용량Ah}-{순번} 예) LPO-6S-22-001</p>
 
-      <label for="admin-model" class="mt-4 block text-sm font-semibold text-gray-700">Model (B열, 자동 생성)</label>
+      <label for="admin-model" class="mt-4 block text-sm font-semibold text-gray-700">Model (자동 생성)</label>
       <input id="admin-model" type="text" readonly class="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-lg text-gray-700 outline-none" placeholder="6S 22000mAh (LiPo)">
 
-      <label for="admin-start-date" class="mt-4 block text-sm font-semibold text-gray-700">StartDate (C열)</label>
-      <input id="admin-start-date" type="date" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-lg outline-none focus:border-marine focus:ring-2 focus:ring-marine/20">
+      <label for="admin-start-date" class="mt-4 block text-sm font-semibold text-gray-700">StartDate</label>
+      <div class="mt-2 min-w-0 w-full max-w-full overflow-hidden">
+        <input id="admin-start-date" type="date" class="batlog-date-field rounded-xl border border-gray-300 bg-white px-4 py-3 text-lg outline-none focus:border-marine focus:ring-2 focus:ring-marine/20">
+      </div>
 
-      <label for="admin-max-cycles" class="mt-4 block text-sm font-semibold text-gray-700">MaxCycles (D열)</label>
+      <label for="admin-max-cycles" class="mt-4 block text-sm font-semibold text-gray-700">MaxCycles</label>
       <select id="admin-max-cycles" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"></select>
       <div id="admin-max-cycles-custom-panel" class="mt-2 hidden rounded-xl border border-dashed border-marine/40 bg-marine-light/40 p-3">
         <input id="admin-max-cycles-custom-value" type="number" min="1" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-marine" placeholder="예: 350">
