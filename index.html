@@ -25,6 +25,7 @@
     };
   </script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <style>
     body {
       font-family: 'Pretendard', 'Inter', 'Malgun Gothic', sans-serif;
@@ -124,6 +125,9 @@
     // 권장 수명의 몇 %부터 '임박' 경고를 표시할지 (0.9 = 90%)
     const LIFECYCLE_WARNING_RATIO = 0.9;
     const ACCESS_SESSION_KEY = 'batlog.qr.access';
+    const ADMIN_SESSION_KEY = 'batlog.admin.access';
+    const ADMIN_PIN = '8842';
+    const APP_BASE_URL = 'https://zhaot3065.github.io/BATLog';
 
     const WORKERS = [
       { value: '', label: '선택하세요' },
@@ -163,6 +167,39 @@
     let currentCycleCount = 0;
     let isSubmitting = false;
     let activeApiUrl = null;
+    let adminPinValue = '';
+    let lastRegisteredBattery = null;
+
+    function isAdminMode() {
+      return new URLSearchParams(window.location.search).get('mode') === 'admin';
+    }
+
+    function hasAdminSession() {
+      return sessionStorage.getItem(ADMIN_SESSION_KEY) === '1';
+    }
+
+    function grantAdminSession(pin) {
+      adminPinValue = pin;
+      sessionStorage.setItem(ADMIN_SESSION_KEY, '1');
+      sessionStorage.setItem('batlog.admin.pin', pin);
+    }
+
+    function buildQrPayloadText(batteryId) {
+      return 'BATLOG|' + getActiveApiUrl() + '|' + batteryId;
+    }
+
+    function setAdminHeader(title, subtitle) {
+      document.getElementById('page-title').textContent = title;
+      document.getElementById('page-subtitle').textContent = subtitle;
+    }
+
+    function resetWorkerHeader() {
+      setAdminHeader('배터리 충전 기록', '배터리 QR 코드를 스캔하여 충전 사이클을 기록합니다. 최초 접속은 QR 스캔이 필요합니다.');
+    }
+
+    function setAdminHeaderDefault() {
+      setAdminHeader('배터리 등록 · QR 라벨', '배터리 정보를 등록하고 열전사 프린터용 QR 라벨을 다운로드합니다.');
+    }
 
     function isAppsScriptUrl(urlString) {
       try {
@@ -347,7 +384,15 @@
     }
 
     function showScreen(screenId) {
-      ['gate-screen', 'scan-screen', 'battery-screen', 'error-screen'].forEach(function (id) {
+      [
+        'gate-screen',
+        'scan-screen',
+        'battery-screen',
+        'error-screen',
+        'admin-login-screen',
+        'admin-register-screen',
+        'admin-label-screen',
+      ].forEach(function (id) {
         document.getElementById(id).classList.toggle('hidden', id !== screenId);
       });
     }
@@ -685,7 +730,195 @@
       }
     }
 
+    function showAdminLoginScreen() {
+      setAdminHeaderDefault();
+      document.getElementById('admin-pin-input').value = '';
+      showScreen('admin-login-screen');
+    }
+
+    function showAdminRegisterScreen() {
+      setAdminHeaderDefault();
+      document.getElementById('admin-start-date').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('admin-max-cycles').value = String(DEFAULT_MAX_CYCLES);
+      showScreen('admin-register-screen');
+      fetchNextBatteryId();
+    }
+
+    function showAdminLabelScreen(battery) {
+      lastRegisteredBattery = battery;
+      document.getElementById('admin-label-id').textContent = battery.id;
+      document.getElementById('admin-label-model').textContent = battery.model;
+      document.getElementById('admin-label-start-date').textContent = battery.startDate;
+      document.getElementById('admin-label-max-cycles').textContent = String(battery.maxCycles) + '회';
+      document.getElementById('admin-label-qr-text').textContent = buildQrPayloadText(battery.id);
+      renderAdminLabelPreview(battery);
+      showScreen('admin-label-screen');
+    }
+
+    async function fetchNextBatteryId() {
+      try {
+        const url = getActiveApiUrl() + '?action=nextid&pin=' + encodeURIComponent(adminPinValue);
+        const response = await fetch(url, { method: 'GET' });
+        const data = await response.json();
+        if (data.success) {
+          document.getElementById('admin-battery-id').value = data.nextId;
+        }
+      } catch (err) {
+        // 자동 ID 실패 시 수동 입력
+      }
+    }
+
+    async function submitAdminLogin() {
+      const pin = document.getElementById('admin-pin-input').value.trim();
+      if (!pin) {
+        alert('관리자 PIN을 입력해 주세요.');
+        return;
+      }
+
+      showLoading(true);
+      try {
+        const url = getActiveApiUrl() + '?action=nextid&pin=' + encodeURIComponent(pin);
+        const response = await fetch(url, { method: 'GET' });
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.error || 'PIN 확인에 실패했습니다.');
+        }
+        grantAdminSession(pin);
+        document.getElementById('admin-battery-id').value = data.nextId;
+        showAdminRegisterScreen();
+      } catch (err) {
+        alert(err.message || '관리자 PIN이 올바르지 않습니다.');
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    async function submitBatteryRegister() {
+      const batteryId = document.getElementById('admin-battery-id').value.trim().toUpperCase();
+      const model = document.getElementById('admin-model').value.trim();
+      const startDate = document.getElementById('admin-start-date').value;
+      const maxCycles = document.getElementById('admin-max-cycles').value.trim();
+
+      if (!batteryId || !model || !startDate || !maxCycles) {
+        alert('모든 항목을 입력해 주세요.');
+        return;
+      }
+
+      showLoading(true);
+      try {
+        const formData = new URLSearchParams();
+        formData.append('action', 'register');
+        formData.append('pin', adminPinValue);
+        formData.append('id', batteryId);
+        formData.append('model', model);
+        formData.append('startDate', startDate);
+        formData.append('maxCycles', maxCycles);
+
+        const response = await fetch(getActiveApiUrl(), {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || '배터리 등록에 실패했습니다.');
+        }
+
+        showAdminLabelScreen(data);
+        showToast('배터리가 등록되었습니다.', 'success');
+      } catch (err) {
+        showToast(err.message || '배터리 등록에 실패했습니다.', 'error');
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    async function renderAdminLabelPreview(battery) {
+      const preview = document.getElementById('admin-label-preview');
+      const canvas = await buildLabelCanvas(battery);
+      preview.innerHTML = '';
+      canvas.className = 'mx-auto max-w-full rounded-xl border border-gray-200';
+      preview.appendChild(canvas);
+    }
+
+    async function buildLabelCanvas(battery) {
+      const qrText = buildQrPayloadText(battery.id);
+      const canvas = document.createElement('canvas');
+      canvas.width = 820;
+      canvas.height = 520;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#222222';
+      ctx.font = 'bold 44px Pretendard, Malgun Gothic, sans-serif';
+      ctx.fillText(battery.id, 36, 72);
+
+      ctx.font = '26px Pretendard, Malgun Gothic, sans-serif';
+      ctx.fillText(battery.model, 36, 122);
+      ctx.fillText('시작일 ' + battery.startDate, 36, 168);
+      ctx.fillText('수명 ' + battery.maxCycles + '회', 36, 214);
+
+      ctx.fillStyle = '#00a8d4';
+      ctx.font = 'bold 22px Pretendard, Malgun Gothic, sans-serif';
+      ctx.fillText('해양드론기술 BATLog', 36, 270);
+
+      ctx.strokeStyle = '#e0e0e0';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(24, 24, 772, 472);
+
+      const qrCanvas = document.createElement('canvas');
+      await QRCode.toCanvas(qrCanvas, qrText, {
+        width: 300,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+      });
+      ctx.drawImage(qrCanvas, 470, 96);
+
+      return canvas;
+    }
+
+    async function buildQrOnlyCanvas(battery) {
+      const qrCanvas = document.createElement('canvas');
+      await QRCode.toCanvas(qrCanvas, buildQrPayloadText(battery.id), {
+        width: 512,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+      });
+      return qrCanvas;
+    }
+
+    function downloadCanvas(canvas, filename) {
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    async function downloadLabelPng() {
+      if (!lastRegisteredBattery) {
+        return;
+      }
+      const canvas = await buildLabelCanvas(lastRegisteredBattery);
+      downloadCanvas(canvas, 'BATLog_' + lastRegisteredBattery.id + '_label.png');
+    }
+
+    async function downloadQrPng() {
+      if (!lastRegisteredBattery) {
+        return;
+      }
+      const canvas = await buildQrOnlyCanvas(lastRegisteredBattery);
+      downloadCanvas(canvas, 'BATLog_' + lastRegisteredBattery.id + '_qr.png');
+    }
+
     document.addEventListener('DOMContentLoaded', async function () {
+      document.getElementById('admin-login-button').addEventListener('click', submitAdminLogin);
+      document.getElementById('admin-register-button').addEventListener('click', submitBatteryRegister);
+      document.getElementById('admin-next-id-button').addEventListener('click', fetchNextBatteryId);
+      document.getElementById('admin-new-register-button').addEventListener('click', showAdminRegisterScreen);
+      document.getElementById('admin-download-label-button').addEventListener('click', downloadLabelPng);
+      document.getElementById('admin-download-qr-button').addEventListener('click', downloadQrPng);
       document.getElementById('gate-scan-button').addEventListener('click', startQrScanner);
       document.getElementById('start-scan-button').addEventListener('click', startQrScanner);
       document.getElementById('submit-button').addEventListener('click', submitChargingLog);
@@ -706,6 +939,17 @@
       if (payloadFromUrl.apiUrl) {
         setActiveApiUrl(payloadFromUrl.apiUrl);
       }
+
+      if (isAdminMode()) {
+        if (hasAdminSession()) {
+          adminPinValue = sessionStorage.getItem('batlog.admin.pin') || '';
+          showAdminRegisterScreen();
+        } else {
+          showAdminLoginScreen();
+        }
+        return;
+      }
+
       if (payloadFromUrl.batteryId) {
         grantQrAccess();
         await loadBattery(payloadFromUrl.batteryId, payloadFromUrl.apiUrl);
@@ -736,8 +980,8 @@
   <div class="mx-auto flex min-h-[calc(100vh-57px)] max-w-lg flex-col px-4 py-6">
     <section class="mb-6 text-center">
       <p class="section-label text-sm font-semibold text-marine">Battery Management</p>
-      <h1 class="mt-2 text-3xl font-bold tracking-tight text-gray-900">배터리 충전 기록</h1>
-      <p class="mt-3 text-sm leading-6 text-gray-500">
+      <h1 id="page-title" class="mt-2 text-3xl font-bold tracking-tight text-gray-900">배터리 충전 기록</h1>
+      <p id="page-subtitle" class="mt-3 text-sm leading-6 text-gray-500">
         배터리 QR 코드를 스캔하여 충전 사이클을 기록합니다. 최초 접속은 QR 스캔이 필요합니다.
       </p>
     </section>
@@ -863,6 +1107,134 @@
             class="mt-6 w-full rounded-xl bg-[#eb3949] px-6 py-4 text-lg font-bold text-white transition hover:opacity-90"
           >
             다시 시도
+          </button>
+        </div>
+      </section>
+
+      <section id="admin-login-screen" class="hidden space-y-5">
+        <div class="brand-card rounded-2xl p-6">
+          <p class="section-label text-sm font-semibold text-marine">Admin</p>
+          <h2 class="mt-1 text-2xl font-bold text-gray-900">관리자 로그인</h2>
+          <p class="mt-2 text-sm leading-6 text-gray-500">배터리 등록 및 QR 라벨 생성은 관리자 PIN이 필요합니다.</p>
+          <label for="admin-pin-input" class="mt-5 block text-sm font-semibold text-gray-700">관리자 PIN</label>
+          <input
+            id="admin-pin-input"
+            type="password"
+            inputmode="numeric"
+            class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-lg outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"
+            placeholder="PIN 입력"
+          >
+          <button
+            id="admin-login-button"
+            class="brand-btn-primary mt-5 w-full rounded-xl px-6 py-4 text-lg font-bold text-white"
+          >
+            로그인
+          </button>
+        </div>
+      </section>
+
+      <section id="admin-register-screen" class="hidden space-y-5">
+        <div class="brand-card rounded-2xl p-6">
+          <p class="section-label text-sm font-semibold text-marine">Register</p>
+          <h2 class="mt-1 text-2xl font-bold text-gray-900">배터리 등록</h2>
+          <p class="mt-2 text-sm text-gray-500">등록 후 QR 라벨 PNG를 다운로드해 앱손 프린터 앱에서 출력하세요.</p>
+
+          <label for="admin-battery-id" class="mt-5 block text-sm font-semibold text-gray-700">배터리 ID</label>
+          <div class="mt-2 flex gap-2">
+            <input
+              id="admin-battery-id"
+              type="text"
+              class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-lg uppercase outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"
+              placeholder="BT001"
+            >
+            <button
+              id="admin-next-id-button"
+              type="button"
+              class="shrink-0 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              자동 ID
+            </button>
+          </div>
+
+          <label for="admin-model" class="mt-4 block text-sm font-semibold text-gray-700">모델명</label>
+          <input
+            id="admin-model"
+            type="text"
+            class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-lg outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"
+            placeholder="6S 22000mAh"
+          >
+
+          <label for="admin-start-date" class="mt-4 block text-sm font-semibold text-gray-700">사용 시작일</label>
+          <input
+            id="admin-start-date"
+            type="date"
+            class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-lg outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"
+          >
+
+          <label for="admin-max-cycles" class="mt-4 block text-sm font-semibold text-gray-700">권장 수명 (사이클)</label>
+          <input
+            id="admin-max-cycles"
+            type="number"
+            min="1"
+            class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-lg outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"
+          >
+
+          <button
+            id="admin-register-button"
+            class="brand-btn-primary mt-6 w-full rounded-xl px-6 py-5 text-lg font-bold text-white"
+          >
+            등록하고 QR 만들기
+          </button>
+        </div>
+      </section>
+
+      <section id="admin-label-screen" class="hidden space-y-5">
+        <div class="brand-card rounded-2xl p-6">
+          <p class="section-label text-sm font-semibold text-marine">Label</p>
+          <h2 class="mt-1 text-2xl font-bold text-gray-900">QR 라벨 미리보기</h2>
+          <p class="mt-2 text-sm text-gray-500">PNG를 저장한 뒤 앱손 프린터 앱에서 불러와 출력하세요.</p>
+
+          <div id="admin-label-preview" class="mt-5 overflow-hidden rounded-xl bg-gray-50 p-3"></div>
+
+          <dl class="mt-5 space-y-2 rounded-xl bg-gray-50 p-4 text-sm">
+            <div class="flex justify-between gap-4">
+              <dt class="text-gray-500">배터리 ID</dt>
+              <dd id="admin-label-id" class="font-bold text-gray-900"></dd>
+            </div>
+            <div class="flex justify-between gap-4">
+              <dt class="text-gray-500">모델명</dt>
+              <dd id="admin-label-model" class="font-semibold text-gray-900"></dd>
+            </div>
+            <div class="flex justify-between gap-4">
+              <dt class="text-gray-500">시작일</dt>
+              <dd id="admin-label-start-date" class="font-semibold text-gray-900"></dd>
+            </div>
+            <div class="flex justify-between gap-4">
+              <dt class="text-gray-500">권장 수명</dt>
+              <dd id="admin-label-max-cycles" class="font-semibold text-gray-900"></dd>
+            </div>
+          </dl>
+
+          <p class="mt-4 text-xs leading-5 text-gray-500">QR 내용</p>
+          <p id="admin-label-qr-text" class="mt-1 break-all rounded-lg bg-gray-50 p-3 text-xs text-gray-600"></p>
+
+          <button
+            id="admin-download-label-button"
+            class="brand-btn-primary mt-5 w-full rounded-xl px-6 py-5 text-lg font-bold text-white"
+          >
+            라벨 PNG 다운로드
+          </button>
+          <button
+            id="admin-download-qr-button"
+            class="mt-3 w-full rounded-xl border border-gray-300 bg-white px-6 py-4 text-base font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            QR만 PNG 다운로드
+          </button>
+          <button
+            id="admin-new-register-button"
+            class="mt-3 w-full rounded-xl border border-marine/30 bg-marine-light px-6 py-4 text-base font-semibold text-marine"
+          >
+            다른 배터리 등록
           </button>
         </div>
       </section>
