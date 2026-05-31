@@ -1,9 +1,10 @@
 /**
  * BATLog - 리튬 배터리 충전 이력 추적 API
  *
- * Batteries: A=BatteryID, B=Model, C=StartDate, D=MaxCycles
+ * Batteries: A=BatteryID, B=Model, C=StartDate, D=MaxCycles, E=CycleCount
  * ChargingLogs: A=Timestamp, B=BatteryID, C=Worker
  * AppearanceReports: A=Timestamp, B=BatteryID, C=Worker, D=Issues, E=Note, F=Status
+ * Workers: A=Name
  *
  * Battery ID 형식: {CHEM}-{N}S-{CAP}-{SEQ}
  * 예) LPO-6S-22-001  (LiPo, 6S, 22000mAh, 1번)
@@ -14,6 +15,28 @@ const REGISTER_OPTIONS_KEY = 'REGISTER_OPTIONS';
 const ADMIN_EMAIL_PROPERTY_KEY = 'ADMIN_EMAIL';
 const ADMIN_EMAILS_PROPERTY_KEY = 'ADMIN_EMAILS';
 const APPEARANCE_REPORT_HEADERS = ['Timestamp', 'BatteryID', 'Worker', 'Issues', 'Note', 'Status'];
+const CHARGING_DEDUP_WINDOW_MS = 60 * 1000;
+const DEFAULT_WORKERS = [
+  '홍운희',
+  '오창룡',
+  '변현정',
+  '곽광훈',
+  '이대현',
+  '박의정',
+  '최혜성',
+  'Nguyen Phuc',
+  '박영종',
+  '권용길',
+  '김동욱',
+  '손진웅',
+  '김태형',
+  '황대웅',
+  '한석',
+  '김영석',
+  '김희주',
+  '신승민',
+  '황치성',
+];
 
 function jsonResponse_(payload) {
   return ContentService
@@ -233,16 +256,23 @@ function handleBatteryList_(params, sheet) {
   return jsonResponse_({ success: true, batteries: listBatteries_(sheet) });
 }
 
-function findBattery_(sheet, batteryId) {
+function findBatteryWithRow_(sheet, batteryId) {
   const rows = sheet.getDataRange().getValues();
   const normalizedId = normalizeBatteryId_(batteryId);
 
   for (let i = 1; i < rows.length; i++) {
     if (normalizeBatteryId_(rows[i][0]) === normalizedId) {
+      const storedCount = rows[i][4];
+      const cycleCount = storedCount === '' || storedCount === null || storedCount === undefined
+        ? null
+        : Math.floor(Number(storedCount));
+
       return {
+        rowIndex: i + 1,
         model: rows[i][1],
         startDate: formatDate_(rows[i][2]),
         maxCycles: parseMaxCycles_(rows[i][3]),
+        cycleCount: Number.isFinite(cycleCount) && cycleCount >= 0 ? cycleCount : null,
       };
     }
   }
@@ -250,11 +280,33 @@ function findBattery_(sheet, batteryId) {
   return null;
 }
 
-function batteryExists_(sheet, batteryId) {
-  return findBattery_(sheet, batteryId) !== null;
+function findBattery_(sheet, batteryId) {
+  const battery = findBatteryWithRow_(sheet, batteryId);
+  if (!battery) {
+    return null;
+  }
+
+  return {
+    model: battery.model,
+    startDate: battery.startDate,
+    maxCycles: battery.maxCycles,
+    rowIndex: battery.rowIndex,
+    cycleCount: battery.cycleCount,
+  };
 }
 
-function countCycles_(sheet, batteryId) {
+function batteryExists_(sheet, batteryId) {
+  return findBatteryWithRow_(sheet, batteryId) !== null;
+}
+
+function ensureCycleCountColumn_(sheet) {
+  const header = String(sheet.getRange(1, 5).getValue() || '').trim();
+  if (header !== 'CycleCount') {
+    sheet.getRange(1, 5).setValue('CycleCount');
+  }
+}
+
+function countCyclesFromLogs_(sheet, batteryId) {
   const rows = sheet.getDataRange().getValues();
   const normalizedId = normalizeBatteryId_(batteryId);
   let count = 0;
@@ -266,6 +318,193 @@ function countCycles_(sheet, batteryId) {
   }
 
   return count;
+}
+
+function countCycles_(sheet, batteryId) {
+  return countCyclesFromLogs_(sheet, batteryId);
+}
+
+function getBatteryCycleCount_(batteriesSheet, logsSheet, batteryId) {
+  ensureCycleCountColumn_(batteriesSheet);
+  const battery = findBatteryWithRow_(batteriesSheet, batteryId);
+
+  if (!battery) {
+    return 0;
+  }
+
+  if (battery.cycleCount !== null) {
+    return battery.cycleCount;
+  }
+
+  const count = countCyclesFromLogs_(logsSheet, batteryId);
+  batteriesSheet.getRange(battery.rowIndex, 5).setValue(count);
+  return count;
+}
+
+function incrementBatteryCycleCount_(batteriesSheet, logsSheet, batteryId) {
+  ensureCycleCountColumn_(batteriesSheet);
+  const battery = findBatteryWithRow_(batteriesSheet, batteryId);
+
+  if (!battery) {
+    throw new Error('등록되지 않은 배터리 ID입니다.');
+  }
+
+  let nextCount;
+  if (battery.cycleCount !== null) {
+    nextCount = battery.cycleCount + 1;
+  } else {
+    nextCount = countCyclesFromLogs_(logsSheet, batteryId);
+  }
+
+  batteriesSheet.getRange(battery.rowIndex, 5).setValue(nextCount);
+  return nextCount;
+}
+
+function parseLogTimestamp_(value) {
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+
+  const parsed = new Date(value);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.getTime();
+  }
+
+  return NaN;
+}
+
+function hasRecentChargingLog_(logsSheet, batteryId, worker, windowMs) {
+  const lastRow = logsSheet.getLastRow();
+  if (lastRow < 2) {
+    return false;
+  }
+
+  const normalizedId = normalizeBatteryId_(batteryId);
+  const normalizedWorker = String(worker || '').trim();
+  const startRow = Math.max(2, lastRow - 100);
+  const rows = logsSheet.getRange(startRow, 1, lastRow, 3).getValues();
+  const now = Date.now();
+
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const rowBatteryId = normalizeBatteryId_(rows[i][1]);
+    const rowWorker = String(rows[i][2] || '').trim();
+
+    if (rowBatteryId !== normalizedId || rowWorker !== normalizedWorker) {
+      continue;
+    }
+
+    const timestampMs = parseLogTimestamp_(rows[i][0]);
+    if (!isNaN(timestampMs) && now - timestampMs <= windowMs) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function ensureWorkersSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Workers');
+
+  if (!sheet) {
+    sheet = ss.insertSheet('Workers');
+    sheet.getRange(1, 1).setValue('Name');
+    DEFAULT_WORKERS.forEach(function (name) {
+      sheet.appendRow([name]);
+    });
+    return sheet;
+  }
+
+  const header = String(sheet.getRange(1, 1).getValue() || '').trim();
+  if (header !== 'Name') {
+    sheet.getRange(1, 1).setValue('Name');
+  }
+
+  if (sheet.getLastRow() < 2) {
+    DEFAULT_WORKERS.forEach(function (name) {
+      sheet.appendRow([name]);
+    });
+  }
+
+  return sheet;
+}
+
+function normalizeWorkerName_(name) {
+  return String(name || '').replace(/\s+/g, ' ').trim();
+}
+
+function listWorkers_(sheet) {
+  if (!sheet || sheet.getLastRow() < 2) {
+    return [];
+  }
+
+  const rows = sheet.getDataRange().getValues();
+  const workers = [];
+  const seen = {};
+
+  for (let i = 1; i < rows.length; i++) {
+    const name = normalizeWorkerName_(rows[i][0]);
+    if (!name || seen[name]) {
+      continue;
+    }
+    seen[name] = true;
+    workers.push(name);
+  }
+
+  workers.sort(function (a, b) {
+    return a.localeCompare(b, 'ko');
+  });
+
+  return workers;
+}
+
+function addWorker_(sheet, name) {
+  const normalized = normalizeWorkerName_(name);
+
+  if (normalized.length < 2) {
+    throw new Error('작업자 이름은 2자 이상 입력해 주세요.');
+  }
+
+  if (normalized.length > 30) {
+    throw new Error('작업자 이름은 30자 이하여야 합니다.');
+  }
+
+  const existing = listWorkers_(sheet);
+  if (existing.some(function (worker) { return worker === normalized; })) {
+    return {
+      created: false,
+      workers: existing,
+      name: normalized,
+    };
+  }
+
+  sheet.appendRow([normalized]);
+  const workers = listWorkers_(sheet);
+  return {
+    created: true,
+    workers: workers,
+    name: normalized,
+  };
+}
+
+function handleWorkersGet_() {
+  const sheet = ensureWorkersSheet_();
+  return jsonResponse_({
+    success: true,
+    workers: listWorkers_(sheet),
+  });
+}
+
+function handleWorkerAdd_(params) {
+  const sheet = ensureWorkersSheet_();
+  const result = addWorker_(sheet, params.name || params.worker);
+
+  return jsonResponse_({
+    success: true,
+    created: result.created,
+    name: result.name,
+    workers: result.workers,
+  });
 }
 
 function getSpreadsheet_() {
@@ -897,6 +1136,7 @@ function handleRegisterBattery_(params) {
     model,
     startDate,
     maxCycles,
+    0,
   ]);
 
   return jsonResponse_({
@@ -984,7 +1224,7 @@ function handleAppearanceReport_(params) {
     model: battery.model,
     startDate: battery.startDate,
     maxCycles: battery.maxCycles,
-    cycleCount: countCycles_(sheets.logsSheet, batteryId),
+    cycleCount: getBatteryCycleCount_(sheets.batteriesSheet, sheets.logsSheet, batteryId),
     emailSent: !!mailResult.sent,
     emailWarning: saved.deduplicated
       ? ''
@@ -1117,7 +1357,7 @@ function handleAppearanceReportAction_(params, nextStatus) {
 
 function handleChargingLog_(params) {
   const batteryId = normalizeBatteryId_(params.id);
-  const worker = String(params.worker || '').trim();
+  const worker = normalizeWorkerName_(params.worker);
 
   if (!batteryId) {
     return jsonResponse_({ success: false, error: 'Battery ID가 필요합니다.' });
@@ -1127,42 +1367,58 @@ function handleChargingLog_(params) {
     return jsonResponse_({ success: false, error: '작업자 이름이 필요합니다.' });
   }
 
-  const sheets = getSpreadsheet_();
-  const battery = findBattery_(sheets.batteriesSheet, batteryId);
-
-  if (!battery) {
-    return jsonResponse_({ success: false, error: '등록되지 않은 배터리 ID입니다.' });
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return jsonResponse_({ success: false, error: '다른 요청 처리 중입니다. 잠시 후 다시 시도해 주세요.' });
   }
 
-  const appearanceBlock = getBatteryAppearanceBlock_(getAppearanceReportsSheet_(), batteryId);
-  if (appearanceBlock) {
-    const errorMessage = appearanceBlock.blockType === 'disposed'
-      ? '폐기처리된 배터리입니다. 사용·충전할 수 없습니다.'
-      : '외관 이상이 보고된 배터리입니다. 사용·충전할 수 없습니다.';
+  try {
+    const sheets = getSpreadsheet_();
+    const battery = findBattery_(sheets.batteriesSheet, batteryId);
+
+    if (!battery) {
+      return jsonResponse_({ success: false, error: '등록되지 않은 배터리 ID입니다.' });
+    }
+
+    const appearanceBlock = getBatteryAppearanceBlock_(getAppearanceReportsSheet_(), batteryId);
+    if (appearanceBlock) {
+      const errorMessage = appearanceBlock.blockType === 'disposed'
+        ? '폐기처리된 배터리입니다. 사용·충전할 수 없습니다.'
+        : '외관 이상이 보고된 배터리입니다. 사용·충전할 수 없습니다.';
+
+      return jsonResponse_({
+        success: false,
+        error: errorMessage,
+      });
+    }
+
+    if (hasRecentChargingLog_(sheets.logsSheet, batteryId, worker, CHARGING_DEDUP_WINDOW_MS)) {
+      return jsonResponse_({
+        success: false,
+        error: '방금 동일한 배터리·작업자로 기록되었습니다. 중복 기록을 방지했습니다.',
+      });
+    }
+
+    const now = new Date();
+    sheets.logsSheet.appendRow([
+      now,
+      batteryId,
+      worker,
+    ]);
+
+    const cycleCount = incrementBatteryCycleCount_(sheets.batteriesSheet, sheets.logsSheet, batteryId);
 
     return jsonResponse_({
-      success: false,
-      error: errorMessage,
+      success: true,
+      id: batteryId,
+      worker: worker,
+      timestamp: formatTimestamp_(now),
+      maxCycles: battery.maxCycles,
+      cycleCount: cycleCount,
     });
+  } finally {
+    lock.releaseLock();
   }
-
-  const now = new Date();
-  sheets.logsSheet.appendRow([
-    formatTimestamp_(now),
-    batteryId,
-    worker,
-  ]);
-
-  const cycleCount = countCycles_(sheets.logsSheet, batteryId);
-
-  return jsonResponse_({
-    success: true,
-    id: batteryId,
-    worker: worker,
-    timestamp: formatTimestamp_(now),
-    maxCycles: battery.maxCycles,
-    cycleCount: cycleCount,
-  });
 }
 
 function doGet(e) {
@@ -1199,6 +1455,10 @@ function doGet(e) {
       return handleAppearanceReportsList_(params, sheets);
     }
 
+    if (action === 'workers') {
+      return handleWorkersGet_();
+    }
+
     const batteryId = normalizeBatteryId_(params.id);
 
     if (!batteryId) {
@@ -1211,7 +1471,7 @@ function doGet(e) {
       return jsonResponse_({ success: false, error: '등록되지 않은 배터리 ID입니다.' });
     }
 
-    const cycleCount = countCycles_(sheets.logsSheet, batteryId);
+    const cycleCount = getBatteryCycleCount_(sheets.batteriesSheet, sheets.logsSheet, batteryId);
     const appearanceBlock = getBatteryAppearanceBlock_(getAppearanceReportsSheet_(), batteryId);
 
     return jsonResponse_({
@@ -1276,6 +1536,10 @@ function doPost(e) {
 
     if (params.action === 'disposeappearance') {
       return handleAppearanceReportAction_(params, 'disposed');
+    }
+
+    if (params.action === 'addworker') {
+      return handleWorkerAdd_(params);
     }
 
     return handleChargingLog_(params);

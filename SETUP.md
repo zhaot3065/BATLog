@@ -2,90 +2,92 @@
 
 ## 1. Google 스프레드시트 준비
 
-새 스프레드시트를 만들고 아래 2개 시트를 구성합니다.
+새 스프레드시트를 만들고 아래 시트를 구성합니다.
 
 ### Batteries
 
-| A: BatteryID | B: Model | C: StartDate | D: MaxCycles |
-|--------------|----------|--------------|--------------|
-| LPO-6S-22-001 | 6S 22000mAh (LiPo) | 2026-01-01 | 300 |
+| A: BatteryID | B: Model | C: StartDate | D: MaxCycles | E: CycleCount |
+|--------------|----------|--------------|--------------|---------------|
+| LPO-6S-22-001 | 6S 22000mAh (LiPo) | 2026-01-01 | 300 | 0 |
 
-#### Battery ID 규칙 (확정)
-
-```
-{CHEM}-{N}S-{용량Ah}-{순번}
-```
-
-| 코드 | 종류 |
-|------|------|
-| LPO | LiPo (리튬폴리머) |
-| LIO | Li-ion (리튬이온) |
-| LFE | LiFe (인산철) |
-| NMH | NiMH |
-| SSE | 전고체 |
-| SSI | 반고체 |
-
-- **용량Ah** = mAh ÷ 1000 (22000 → `22`)
-- **순번** = 같은 `{종류-S-용량Ah}` 조합에서 001부터 자동 증가
-- 예: `LPO-7S-35-001` → 7S 35000mAh LiPo 1번
-- 기존 `BT001` 형식도 **조회·기록**은 계속 지원
-
-#### 레거시 재고 일괄 반영
-
-`artifacts/source/legacy-inventory.xlsx`(WMP) 기준 배터리 **266개**를 미리 생성해 두었습니다.
-
-1. `artifacts/seed/batteries-seed.csv` 열기
-2. Google 스프레드시트 `Batteries` 시트 2행부터 붙여넣기 (헤더 제외)
-3. `StartDate`는 필요 시 일괄 수정
-
-재고 파일이 바뀌면 아래 명령으로 다시 추출합니다.
-
-```powershell
-python scripts/extract_legacy_batteries.py
-```
-
-생성물 (`artifacts/seed/`):
-
-- `legacy-batteries.json` — 추출 원본·요약 (BATLog 양식 필드만)
-- `batteries-seed.csv` — Batteries 시트용 CSV (등급 등 재고 필드 미포함)
-
-Excel 읽기 등 범용 로직은 `D:\WorkSpace\Code\utility` 에 있습니다.
-
-등록 화면 드롭다운(셀 수·용량)도 같은 재고 기준으로 맞춰져 있습니다.
+- **E: CycleCount** — 비워 두어도 됩니다. 최초 조회 시 ChargingLogs에서 자동 backfill 후 이후 +1 갱신.
 
 ### ChargingLogs
 
 | A: Timestamp | B: BatteryID | C: Worker |
 |--------------|--------------|-----------|
 
-1행은 반드시 헤더로 두세요.
+- Timestamp는 **Date** 형식으로 저장됩니다 (문자열로 저장된 기존 행도 호환).
+
+### AppearanceReports
+
+| A: Timestamp | B: BatteryID | C: Worker | D: Issues | E: Note | F: Status |
+|--------------|--------------|-----------|-----------|---------|-----------|
+
+- Status: `open` | `resolved` | `disposed` (또는 한글 `조치완료`, `폐기`)
+
+### Workers
+
+| A: Name |
+|---------|
+
+- 시트가 없으면 API 첫 호출 시 자동 생성·기본 인원 seed.
+- 앱 **작업자 선택 → + 신규 등록**으로 추가.
+
+---
 
 ## 2. Apps Script 연결
 
-1. 스프레드시트에서 `확장 프로그램` → `Apps Script`
-2. `apps-script/Code.gs` 내용을 붙여넣기
-3. `배포` → `새 배포`
-4. 유형: `웹 앱`
-5. 실행 사용자: `나`
-6. 액세스 권한: `모든 사용자`
-7. 배포 후 생성된 **웹 앱 URL** 복사
+1. 스프레드시트 → **확장 프로그램** → **Apps Script**
+2. `apps-script/Code.gs` 붙여넣기
+3. **배포** → **새 배포** (웹 앱, 실행: 나, 액세스: 모든 사용자)
+4. URL을 `index.html`의 `API_URL`에 입력
 
-## 3. 프론트엔드 연결
+### 메일 알림 (외관 이상 보고)
 
-`index.html` 상단의 `API_URL` 값을 배포 URL로 교체합니다.
+1. 편집기에서 함수 **`authorizeMailPermission`** 선택 → 실행
+2. **권한 검토** → Gmail/메일 보내기 허용
+3. **배포 → 새 버전 배포**
+4. 앱 **관리자 설정**에서 알림 메일 주소 등록 · 테스트 메일 발송
+5. 첫 메일은 스팸함일 수 있음 → `comet3065@gmail.com` 수신 허용
 
-```javascript
-const API_URL = 'https://script.google.com/macros/s/....../exec';
+---
+
+## 3. GitHub Pages
+
+```powershell
+git add .
+git commit -m "변경 내용"
+git push
 ```
 
-## 4. 배포 방법
+---
 
-- GitHub Pages, Netlify, 사내 웹 서버 등 정적 호스팅에 `index.html` 업로드
-- 또는 로컬 테스트 시 간단한 HTTP 서버로 실행
+## 4. QR 코드
 
-## 5. QR 코드 예시
+권장: `https://zhaot3065.github.io/BATLog/?id=LPO-7S-35-001`
 
-아래 중 하나로 QR을 생성하면 됩니다.
+관리자 **QR 재출력**에서 PNG 다운로드.
 
-- `BT001`
-- `https://your-domain/index.html?id=BT001`
+---
+
+## 5. 레거시 재고 seed
+
+`artifacts/seed/batteries-seed.csv` → Batteries 시트 2행부터 붙여넣기.
+
+```powershell
+python scripts/extract_legacy_batteries.py
+```
+
+---
+
+## 6. CycleCount · Timestamp 마이그레이션
+
+기존 운영 데이터가 있는 경우:
+
+1. **Code.gs 새 버전 배포**
+2. Batteries **E1**에 헤더 `CycleCount` 추가 (없으면 API가 자동 추가)
+3. 배터리 하나를 앱에서 조회하면 E열이 로그 수로 backfill
+4. 이후 충전 기록은 E열 +1, ChargingLogs A열은 Date로 저장
+
+기존 ChargingLogs의 문자열 Timestamp는 삭제하지 않아도 됩니다.

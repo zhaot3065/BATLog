@@ -344,35 +344,7 @@
       { value: '2048', label: '2048×2048px — QR만 (정사각형)' },
     ];
 
-    const WORKERS = [
-      { value: '', label: '선택하세요' },
-      // 드론기술사업센터
-      { value: '홍운희', label: '홍운희' },
-      // 기술관리실
-      { value: '오창룡', label: '오창룡' },
-      { value: '변현정', label: '변현정' },
-      // 해양드론연구소 / 기체개발파트
-      { value: '곽광훈', label: '곽광훈' },
-      { value: '이대현', label: '이대현' },
-      { value: '박의정', label: '박의정' },
-      { value: '최혜성', label: '최혜성' },
-      // 드론AI파트
-      { value: 'Nguyen Phuc', label: 'Nguyen Phuc' },
-      { value: '박영종', label: '박영종' },
-      { value: '권용길', label: '권용길' },
-      { value: '김동욱', label: '김동욱' },
-      { value: '손진웅', label: '손진웅' },
-      // 드론에너지파트
-      { value: '김태형', label: '김태형' },
-      // 물류사업부 / 국내운항파트
-      { value: '황대웅', label: '황대웅' },
-      { value: '한석', label: '한석' },
-      { value: '김영석', label: '김영석' },
-      { value: '김희주', label: '김희주' },
-      { value: '신승민', label: '신승민' },
-      { value: '황치성', label: '황치성' },
-      { value: '기타', label: '기타' },
-    ];
+    const WORKER_NEW_VALUE = '__new__';
 
     const APPEARANCE_ISSUES = [
       { id: 'swelling', label: '스웰링 (배터리 부풀음)', critical: true },
@@ -408,6 +380,9 @@
     let reprintInputMode = 'input';
     let reprintSuggestHideTimer = null;
     let lastBatteryCardData = null;
+    let workersList = [];
+    let workersFetchPromise = null;
+    let scanProcessing = false;
 
     function hasAdminSession() {
       return sessionStorage.getItem(ADMIN_SESSION_KEY) === '1';
@@ -2399,7 +2374,8 @@
       unlockBodyScroll();
     }
 
-    async function returnToScanScreen() {
+    async function returnToScanScreen(options) {
+      options = options || {};
       hideSuccessModal();
       await stopQrScanner();
       currentBatteryId = null;
@@ -2408,6 +2384,7 @@
       currentMaxCycles = 0;
       currentCycleCount = 0;
       batteryAppearanceBlocked = false;
+      lastBatteryCardData = null;
       resetSubmitButton();
 
       if (window.history.replaceState) {
@@ -2415,6 +2392,10 @@
       }
 
       showScanScreen();
+
+      if (options.autoStartScanner !== false) {
+        await startQrScanner();
+      }
     }
 
     function setScanUiActive(active) {
@@ -2430,40 +2411,128 @@
       }
     }
 
+    async function fetchWorkers(forceRefresh) {
+      if (!forceRefresh && workersList.length) {
+        return workersList;
+      }
+
+      if (!forceRefresh && workersFetchPromise) {
+        return workersFetchPromise;
+      }
+
+      workersFetchPromise = (async function () {
+        try {
+          const response = await fetch(getActiveApiUrl() + '?action=workers', { method: 'GET' });
+          const data = await response.json();
+          if (data.success && Array.isArray(data.workers)) {
+            workersList = data.workers;
+          }
+        } catch (err) {
+          // 네트워크 오류 시 기존 목록 유지
+        }
+        return workersList;
+      })();
+
+      try {
+        return await workersFetchPromise;
+      } finally {
+        workersFetchPromise = null;
+      }
+    }
+
+    async function ensureWorkerRegistered(name) {
+      const normalized = String(name || '').replace(/\s+/g, ' ').trim();
+      if (!normalized) {
+        throw new Error('작업자 이름을 입력해 주세요.');
+      }
+
+      if (workersList.indexOf(normalized) >= 0) {
+        return normalized;
+      }
+
+      const formData = new URLSearchParams();
+      formData.append('action', 'addworker');
+      formData.append('name', normalized);
+
+      const response = await fetch(getActiveApiUrl(), {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || '작업자 등록에 실패했습니다.');
+      }
+
+      workersList = data.workers || workersList;
+      return data.name || normalized;
+    }
+
+    function updateWorkerNewPanel() {
+      const select = document.getElementById('worker-select');
+      const panel = document.getElementById('worker-new-panel');
+      if (!select || !panel) {
+        return;
+      }
+      panel.classList.toggle('hidden', select.value !== WORKER_NEW_VALUE);
+    }
+
+    async function populateWorkerSelect(selectEl) {
+      await fetchWorkers();
+      let html = '<option value="">선택하세요</option>';
+      workersList.forEach(function (name) {
+        html += '<option value="' + escapeHtml(name) + '">' + escapeHtml(name) + '</option>';
+      });
+      html += '<option value="' + WORKER_NEW_VALUE + '">+ 신규 등록</option>';
+      selectEl.innerHTML = html;
+
+      const remembered = getRememberedWorker();
+      if (remembered) {
+        selectEl.value = remembered;
+      }
+      updateWorkerNewPanel();
+    }
+
+    async function resolveWorkerForSubmit() {
+      const select = document.getElementById('worker-select');
+      if (select.value === WORKER_NEW_VALUE) {
+        const name = document.getElementById('worker-new-input').value.trim();
+        if (!name) {
+          return '';
+        }
+        const registered = await ensureWorkerRegistered(name);
+        await populateWorkerSelect(select);
+        select.value = registered;
+        document.getElementById('worker-new-input').value = '';
+        updateWorkerNewPanel();
+        return registered;
+      }
+      return select.value.trim();
+    }
+
     function getRememberedWorker() {
       try {
         const saved = localStorage.getItem(WORKER_MEMORY_STORAGE_KEY);
-        if (!saved) {
+        if (!saved || saved === WORKER_NEW_VALUE) {
           return '';
         }
-        const exists = WORKERS.some(function (worker) {
-          return worker.value === saved;
-        });
-        return exists ? saved : '';
+        if (workersList.length && workersList.indexOf(saved) < 0) {
+          return saved;
+        }
+        return saved;
       } catch (err) {
         return '';
       }
     }
 
     function saveRememberedWorker(worker) {
-      if (!worker) {
+      if (!worker || worker === WORKER_NEW_VALUE) {
         return;
       }
       try {
         localStorage.setItem(WORKER_MEMORY_STORAGE_KEY, worker);
       } catch (err) {
         // private browsing 등 저장 불가 시 무시
-      }
-    }
-
-    function populateWorkerSelect(selectEl) {
-      selectEl.innerHTML = WORKERS.map(function (worker) {
-        return '<option value="' + worker.value + '">' + worker.label + '</option>';
-      }).join('');
-
-      const remembered = getRememberedWorker();
-      if (remembered) {
-        selectEl.value = remembered;
       }
     }
 
@@ -2592,6 +2661,10 @@
     }
 
     function renderBatteryCard(data) {
+      return renderBatteryCardAsync(data);
+    }
+
+    async function renderBatteryCardAsync(data) {
       lastBatteryCardData = data;
       currentBatteryId = data.id;
       currentBatteryModel = data.model || '-';
@@ -2607,7 +2680,7 @@
       applyAppearanceReportBlock(data);
 
       const workerSelect = document.getElementById('worker-select');
-      populateWorkerSelect(workerSelect);
+      await populateWorkerSelect(workerSelect);
       resetAppearanceForm();
 
       resetSubmitButton();
@@ -2623,7 +2696,7 @@
 
       try {
         const data = await fetchBatteryInfo(batteryId);
-        renderBatteryCard(data);
+        await renderBatteryCardAsync(data);
       } catch (err) {
         setErrorMessage(err.message || '알 수 없는 오류가 발생했습니다.');
         showScreen('error-screen');
@@ -2666,9 +2739,15 @@
         return;
       }
 
-      const worker = document.getElementById('worker-select').value.trim();
+      let worker = '';
+      try {
+        worker = await resolveWorkerForSubmit();
+      } catch (err) {
+        showToast(err.message || '작업자 등록에 실패했습니다.', 'error');
+        return;
+      }
       if (!worker) {
-        alert('작업자를 선택해 주세요');
+        showToast('작업자를 선택하거나 이름을 입력해 주세요.', 'error');
         return;
       }
 
@@ -2734,9 +2813,15 @@
         return;
       }
 
-      const worker = document.getElementById('worker-select').value.trim();
+      let worker = '';
+      try {
+        worker = await resolveWorkerForSubmit();
+      } catch (err) {
+        showToast(err.message || '작업자 등록에 실패했습니다.', 'error');
+        return;
+      }
       if (!worker) {
-        alert('작업자를 선택해 주세요');
+        showToast('작업자를 선택하거나 이름을 입력해 주세요.', 'error');
         return;
       }
 
@@ -2790,6 +2875,10 @@
     }
 
     async function handleQrScanSuccess(decodedText) {
+      if (scanProcessing) {
+        return;
+      }
+
       const payload = parseQrPayload(decodedText);
       if (!payload.batteryId) {
         showToast('QR에서 배터리 ID를 찾을 수 없습니다.', 'error');
@@ -2803,9 +2892,35 @@
         return;
       }
 
+      scanProcessing = true;
+      try {
+        grantQrAccess();
+        await stopQrScanner();
+        await loadBattery(payload.batteryId, payload.apiUrl);
+      } finally {
+        scanProcessing = false;
+      }
+    }
+
+    function openIdLookupModal() {
+      document.getElementById('id-lookup-input').value = '';
+      openModal('id-lookup-modal');
+      window.setTimeout(function () {
+        document.getElementById('id-lookup-input').focus();
+      }, 50);
+    }
+
+    async function submitIdLookup() {
+      const batteryId = document.getElementById('id-lookup-input').value.trim().toUpperCase();
+      if (!batteryId) {
+        showToast('Battery ID를 입력해 주세요.', 'error');
+        return;
+      }
+
+      closeModal('id-lookup-modal');
       grantQrAccess();
       await stopQrScanner();
-      await loadBattery(payload.batteryId, payload.apiUrl);
+      await loadBattery(batteryId);
     }
 
     async function clearQrReader() {
@@ -3091,6 +3206,17 @@
       document.getElementById('admin-download-qr-button').addEventListener('click', downloadQrPng);
       document.getElementById('gate-scan-button').addEventListener('click', startQrScanner);
       document.getElementById('start-scan-button').addEventListener('click', startQrScanner);
+      document.getElementById('gate-id-lookup-button').addEventListener('click', openIdLookupModal);
+      document.getElementById('scan-id-lookup-button').addEventListener('click', openIdLookupModal);
+      document.getElementById('id-lookup-submit-button').addEventListener('click', submitIdLookup);
+      document.getElementById('id-lookup-cancel-button').addEventListener('click', function () { closeModal('id-lookup-modal'); });
+      document.getElementById('id-lookup-input').addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          submitIdLookup();
+        }
+      });
+      document.getElementById('worker-select').addEventListener('change', updateWorkerNewPanel);
       document.getElementById('scan-close-button').addEventListener('click', cancelQrScanner);
       document.getElementById('submit-button').addEventListener('click', handlePrimaryAction);
       document.getElementById('appearance-normal-btn').addEventListener('click', function () {
@@ -3130,6 +3256,7 @@
       adminPinValue = sessionStorage.getItem('batlog.admin.pin') || '';
       updateAdminHeaderUi();
       loadLocalBatteryList();
+      fetchWorkers();
       if (adminPinValue) {
         prefetchRegisterScreen();
         fetchBatteryList();
@@ -3271,6 +3398,13 @@
           >
             QR 스캔 시작
           </button>
+          <button
+            id="gate-id-lookup-button"
+            type="button"
+            class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-6 py-4 text-base font-semibold text-gray-700 transition hover:bg-gray-50"
+          >
+            ID로 조회
+          </button>
         </div>
       </section>
 
@@ -3290,6 +3424,13 @@
             class="brand-btn-primary mt-6 w-full rounded-xl px-6 py-5 text-lg font-bold text-white"
           >
             QR 스캔 시작
+          </button>
+          <button
+            id="scan-id-lookup-button"
+            type="button"
+            class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-6 py-4 text-base font-semibold text-gray-700 transition hover:bg-gray-50"
+          >
+            ID로 조회
           </button>
         </div>
       </section>
@@ -3421,6 +3562,18 @@
             id="worker-select"
             class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-lg text-gray-900 outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"
           ></select>
+          <div id="worker-new-panel" class="mt-2 hidden">
+            <label for="worker-new-input" class="block text-sm font-semibold text-gray-700">새 작업자 이름</label>
+            <input
+              id="worker-new-input"
+              type="text"
+              maxlength="30"
+              autocomplete="name"
+              placeholder="이름 입력"
+              class="mt-1 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"
+            >
+            <p class="mt-1 text-xs text-gray-500">기록 시 Workers 시트에 자동 저장됩니다.</p>
+          </div>
 
           <button
             id="submit-button"
@@ -3471,6 +3624,24 @@
 
   <div id="toast" class="fixed bottom-6 left-0 right-0 z-[110] hidden px-4">
     <div class="mx-auto max-w-lg rounded-2xl px-5 py-4 text-base font-semibold shadow-2xl"></div>
+  </div>
+
+  <div id="id-lookup-modal" class="app-modal-overlay fixed inset-0 z-50 hidden flex bg-gray-900/40 backdrop-blur-sm">
+    <div class="brand-card w-full max-w-md rounded-2xl p-6">
+      <p class="section-label text-sm font-semibold text-marine">Lookup</p>
+      <h2 class="mt-1 text-2xl font-bold text-gray-900">ID로 조회</h2>
+      <p class="mt-2 text-sm leading-6 text-gray-500">QR 없이 Battery ID를 직접 입력해 조회합니다.</p>
+      <label for="id-lookup-input" class="mt-5 block text-sm font-semibold text-gray-700">Battery ID</label>
+      <input
+        id="id-lookup-input"
+        type="text"
+        autocomplete="off"
+        class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-lg uppercase outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"
+        placeholder="예: LPO-7S-35-001"
+      >
+      <button id="id-lookup-submit-button" type="button" class="brand-btn-primary mt-5 w-full rounded-xl px-4 py-4 text-base font-bold text-white">조회</button>
+      <button id="id-lookup-cancel-button" type="button" class="mt-3 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-500">취소</button>
+    </div>
   </div>
 
   <div id="admin-login-modal" class="app-modal-overlay fixed inset-0 z-50 hidden flex bg-gray-900/40 backdrop-blur-sm">
