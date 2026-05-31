@@ -137,6 +137,19 @@
       { value: 'SSI', label: '반고체' },
     ];
 
+    const CUSTOM_OPTION_VALUE = '__custom__';
+    const REGISTER_OPTIONS_STORAGE_KEY = 'batlog.register.options';
+    const DEFAULT_CELL_OPTIONS = ['3', '4', '5', '6', '8', '10', '12'];
+    const DEFAULT_CAPACITY_OPTIONS = ['5000', '10000', '16000', '22000', '30000', '44000'];
+    const DEFAULT_MAX_CYCLE_OPTIONS = ['200', '300', '500', '1000'];
+
+    let customRegisterOptions = {
+      chem: [],
+      cells: [],
+      capacity: [],
+      maxCycles: [],
+    };
+
     const LABEL_SIZE_OPTIONS = [
       { value: '640x400', label: '640×400 (컴팩트)' },
       { value: '820x520', label: '820×520 (권장)' },
@@ -231,8 +244,288 @@
     }
 
     function getChemLabel(chem) {
-      const found = CHEM_TYPES.find(function (item) { return item.value === chem; });
-      return found ? found.label.split(' ')[0] : chem;
+      const found = getAllChemOptions().find(function (item) { return item.value === chem; });
+      if (!found) {
+        return chem;
+      }
+      const label = found.label;
+      return label.indexOf('(') !== -1 ? label.split('(')[0].trim() : label;
+    }
+
+    function loadLocalRegisterOptions() {
+      try {
+        const raw = localStorage.getItem(REGISTER_OPTIONS_STORAGE_KEY);
+        if (!raw) {
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        customRegisterOptions = {
+          chem: Array.isArray(parsed.chem) ? parsed.chem : [],
+          cells: Array.isArray(parsed.cells) ? parsed.cells : [],
+          capacity: Array.isArray(parsed.capacity) ? parsed.capacity : [],
+          maxCycles: Array.isArray(parsed.maxCycles) ? parsed.maxCycles : [],
+        };
+      } catch (err) {
+        customRegisterOptions = { chem: [], cells: [], capacity: [], maxCycles: [] };
+      }
+    }
+
+    function saveLocalRegisterOptions() {
+      localStorage.setItem(REGISTER_OPTIONS_STORAGE_KEY, JSON.stringify(customRegisterOptions));
+    }
+
+    function getAllChemOptions() {
+      const map = {};
+      CHEM_TYPES.forEach(function (item) {
+        map[item.value] = item;
+      });
+      (customRegisterOptions.chem || []).forEach(function (item) {
+        if (item && item.value && !map[item.value]) {
+          map[item.value] = item;
+        }
+      });
+      return Object.keys(map).map(function (key) { return map[key]; });
+    }
+
+    function getAllNumericOptions(type, defaults) {
+      const values = defaults.slice();
+      (customRegisterOptions[type] || []).forEach(function (value) {
+        const normalized = String(value);
+        if (values.indexOf(normalized) === -1) {
+          values.push(normalized);
+        }
+      });
+      values.sort(function (a, b) { return Number(a) - Number(b); });
+      return values;
+    }
+
+    function mergeRegisterOptionsFromServer(serverOptions) {
+      if (!serverOptions) {
+        return;
+      }
+
+      ['chem', 'cells', 'capacity', 'maxCycles'].forEach(function (type) {
+        (serverOptions[type] || []).forEach(function (item) {
+          addCustomOptionToStore(type, item, false);
+        });
+      });
+      saveLocalRegisterOptions();
+    }
+
+    async function fetchServerRegisterOptions() {
+      if (!adminPinValue) {
+        return;
+      }
+
+      try {
+        const url = getActiveApiUrl()
+          + '?action=registeroptions&pin=' + encodeURIComponent(adminPinValue);
+        const response = await fetch(url, { method: 'GET' });
+        const data = await response.json();
+        if (data.success && data.options) {
+          mergeRegisterOptionsFromServer(data.options);
+        }
+      } catch (err) {
+        // 로컬 선택지로 계속 진행
+      }
+    }
+
+    async function persistCustomOptionToServer(type, item) {
+      if (!adminPinValue) {
+        return;
+      }
+
+      try {
+        const formData = new URLSearchParams();
+        formData.append('action', 'addregisteroption');
+        formData.append('pin', adminPinValue);
+        formData.append('optionType', type);
+        if (typeof item === 'object') {
+          formData.append('value', item.value);
+          formData.append('label', item.label);
+        } else {
+          formData.append('value', String(item));
+        }
+
+        const response = await fetch(getActiveApiUrl(), {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+        if (data.success && data.options) {
+          mergeRegisterOptionsFromServer(data.options);
+        }
+      } catch (err) {
+        // 로컬 저장만 유지
+      }
+    }
+
+    function addCustomOptionToStore(type, item, persist) {
+      if (persist !== false) {
+        persist = true;
+      }
+
+      if (type === 'chem') {
+        const entry = typeof item === 'object'
+          ? item
+          : { value: String(item).toUpperCase(), label: String(item) };
+        const exists = getAllChemOptions().some(function (option) {
+          return option.value === entry.value;
+        });
+        if (exists) {
+          return false;
+        }
+        customRegisterOptions.chem.push(entry);
+      } else {
+        const value = String(typeof item === 'object' ? item.value : item);
+        const defaults = type === 'cells'
+          ? DEFAULT_CELL_OPTIONS
+          : (type === 'capacity' ? DEFAULT_CAPACITY_OPTIONS : DEFAULT_MAX_CYCLE_OPTIONS);
+        const exists = getAllNumericOptions(type, defaults).indexOf(value) !== -1;
+        if (exists) {
+          return false;
+        }
+        customRegisterOptions[type].push(value);
+      }
+
+      if (persist) {
+        saveLocalRegisterOptions();
+      }
+      return true;
+    }
+
+    function getRegisterSelectId(type) {
+      if (type === 'maxCycles') {
+        return 'admin-max-cycles';
+      }
+      return 'admin-' + type;
+    }
+
+    function hideCustomPanel(type) {
+      const panel = document.getElementById(getRegisterSelectId(type) + '-custom-panel');
+      if (panel) {
+        panel.classList.add('hidden');
+      }
+    }
+
+    function showCustomPanel(type) {
+      hideCustomPanel('chem');
+      hideCustomPanel('cells');
+      hideCustomPanel('capacity');
+      hideCustomPanel('maxCycles');
+      const panel = document.getElementById(getRegisterSelectId(type) + '-custom-panel');
+      if (panel) {
+        panel.classList.remove('hidden');
+      }
+    }
+
+    function renderChemSelect(selectedValue) {
+      const select = document.getElementById('admin-chem');
+      const options = getAllChemOptions();
+      let html = '';
+      options.forEach(function (item) {
+        html += '<option value="' + item.value + '">' + item.label + '</option>';
+      });
+      html += '<option value="' + CUSTOM_OPTION_VALUE + '">+ 직접 추가…</option>';
+      select.innerHTML = html;
+
+      if (selectedValue && options.some(function (item) { return item.value === selectedValue; })) {
+        select.value = selectedValue;
+      } else if (options.length) {
+        select.value = options[0].value;
+      }
+      hideCustomPanel('chem');
+    }
+
+    function renderNumericSelect(type, defaults, selectedValue) {
+      const selectId = getRegisterSelectId(type);
+      const select = document.getElementById(selectId);
+      const values = getAllNumericOptions(type, defaults);
+      let html = '';
+
+      values.forEach(function (value) {
+        let label = value;
+        if (type === 'cells') {
+          label = value + 'S';
+        } else if (type === 'capacity') {
+          label = Number(value).toLocaleString() + ' mAh';
+        } else if (type === 'maxCycles') {
+          label = value + '회';
+        }
+        html += '<option value="' + value + '">' + label + '</option>';
+      });
+      html += '<option value="' + CUSTOM_OPTION_VALUE + '">+ 직접 추가…</option>';
+      select.innerHTML = html;
+
+      if (selectedValue && values.indexOf(String(selectedValue)) !== -1) {
+        select.value = String(selectedValue);
+      } else if (values.length) {
+        select.value = values[0];
+      }
+      hideCustomPanel(type);
+    }
+
+    function refreshAllRegisterSelects(defaults) {
+      defaults = defaults || {};
+      renderChemSelect(defaults.chem);
+      renderNumericSelect('cells', DEFAULT_CELL_OPTIONS, defaults.cells);
+      renderNumericSelect('capacity', DEFAULT_CAPACITY_OPTIONS, defaults.capacity);
+      renderNumericSelect('maxCycles', DEFAULT_MAX_CYCLE_OPTIONS, defaults.maxCycles);
+    }
+
+    function getSelectedRegisterValue(type) {
+      const select = document.getElementById(getRegisterSelectId(type));
+      if (!select || select.value === CUSTOM_OPTION_VALUE) {
+        return '';
+      }
+      return select.value;
+    }
+
+    function handleRegisterSelectChange(type) {
+      const select = document.getElementById(getRegisterSelectId(type));
+      if (select.value === CUSTOM_OPTION_VALUE) {
+        showCustomPanel(type);
+        return;
+      }
+
+      hideCustomPanel(type);
+      syncModelFromSpecs();
+      fetchNextBatteryId();
+    }
+
+    async function confirmCustomRegisterOption(type) {
+      let item;
+
+      if (type === 'chem') {
+        const code = document.getElementById('admin-chem-custom-code').value.trim().toUpperCase();
+        const label = document.getElementById('admin-chem-custom-label').value.trim();
+        if (!/^[A-Z]{2,3}$/.test(code)) {
+          alert('종류 코드는 영문 2~3자 (예: LPO)로 입력해 주세요.');
+          return;
+        }
+        if (!label) {
+          alert('표시 이름을 입력해 주세요.');
+          return;
+        }
+        item = { value: code, label: label + ' (' + code + ')' };
+      } else {
+        const input = document.getElementById(getRegisterSelectId(type) + '-custom-value');
+        const num = Math.floor(Number(input.value.trim()));
+        if (!num || num <= 0) {
+          alert('올바른 숫자를 입력해 주세요.');
+          return;
+        }
+        item = String(num);
+      }
+
+      addCustomOptionToStore(type, item);
+      await persistCustomOptionToServer(type, item);
+      refreshAllRegisterSelects();
+      document.getElementById(getRegisterSelectId(type)).value = typeof item === 'object' ? item.value : item;
+      hideCustomPanel(type);
+      syncModelFromSpecs();
+      fetchNextBatteryId();
+      showToast('선택지에 추가되었습니다.', 'success');
     }
 
     function buildModelName(chem, cells, capacity) {
@@ -241,20 +534,20 @@
 
     function getRegisterFormValues() {
       return {
-        chem: document.getElementById('admin-chem').value,
-        cells: document.getElementById('admin-cells').value.trim(),
-        capacity: document.getElementById('admin-capacity').value.trim(),
+        chem: getSelectedRegisterValue('chem'),
+        cells: getSelectedRegisterValue('cells'),
+        capacity: getSelectedRegisterValue('capacity'),
         model: document.getElementById('admin-model').value.trim(),
         batteryId: document.getElementById('admin-battery-id').value.trim().toUpperCase(),
         startDate: document.getElementById('admin-start-date').value,
-        maxCycles: document.getElementById('admin-max-cycles').value.trim(),
+        maxCycles: getSelectedRegisterValue('maxCycles'),
       };
     }
 
     function syncModelFromSpecs() {
-      const chem = document.getElementById('admin-chem').value;
-      const cells = document.getElementById('admin-cells').value.trim();
-      const capacity = document.getElementById('admin-capacity').value.trim();
+      const chem = getSelectedRegisterValue('chem');
+      const cells = getSelectedRegisterValue('cells');
+      const capacity = getSelectedRegisterValue('capacity');
       if (chem && cells && capacity) {
         document.getElementById('admin-model').value = buildModelName(chem, cells, capacity);
       }
@@ -280,16 +573,21 @@
       openModal('admin-login-modal');
     }
 
-    function openAdminRegisterModal() {
+    async function openAdminRegisterModal() {
       if (!hasAdminSession()) {
         openAdminLoginModal();
         return;
       }
+
+      loadLocalRegisterOptions();
+      await fetchServerRegisterOptions();
       document.getElementById('admin-start-date').value = new Date().toISOString().slice(0, 10);
-      document.getElementById('admin-max-cycles').value = String(DEFAULT_MAX_CYCLES);
-      document.getElementById('admin-cells').value = '6';
-      document.getElementById('admin-capacity').value = '22000';
-      document.getElementById('admin-chem').value = 'LPO';
+      refreshAllRegisterSelects({
+        chem: 'LPO',
+        cells: '6',
+        capacity: '22000',
+        maxCycles: String(DEFAULT_MAX_CYCLES),
+      });
       syncModelFromSpecs();
       fetchNextBatteryId();
       openModal('admin-register-modal');
@@ -307,9 +605,9 @@
     }
 
     async function fetchNextBatteryId() {
-      const chem = document.getElementById('admin-chem').value;
-      const cells = document.getElementById('admin-cells').value.trim();
-      const capacity = document.getElementById('admin-capacity').value.trim();
+      const chem = getSelectedRegisterValue('chem');
+      const cells = getSelectedRegisterValue('cells');
+      const capacity = getSelectedRegisterValue('capacity');
 
       if (!chem || !cells || !capacity || !adminPinValue) {
         return;
@@ -407,8 +705,8 @@
       syncModelFromSpecs();
       const form = getRegisterFormValues();
 
-      if (!form.batteryId || !form.model || !form.startDate || !form.maxCycles) {
-        alert('스프레드시트 양식에 맞게 모든 항목을 입력해 주세요.');
+      if (!form.batteryId || !form.model || !form.startDate || !form.maxCycles || !form.chem || !form.cells || !form.capacity) {
+        alert('모든 항목을 선택해 주세요. 목록에 없으면 "+ 직접 추가…"로 등록할 수 있습니다.');
         return;
       }
 
@@ -1068,9 +1366,8 @@
     }
 
     document.addEventListener('DOMContentLoaded', async function () {
-      CHEM_TYPES.forEach(function (item) {
-        document.getElementById('admin-chem').innerHTML += '<option value="' + item.value + '">' + item.label + '</option>';
-      });
+      loadLocalRegisterOptions();
+      refreshAllRegisterSelects();
       LABEL_SIZE_OPTIONS.forEach(function (item) {
         document.getElementById('admin-label-size').innerHTML += '<option value="' + item.value + '">' + item.label + '</option>';
       });
@@ -1088,9 +1385,14 @@
       document.getElementById('admin-register-button').addEventListener('click', submitBatteryRegister);
       document.getElementById('admin-register-cancel-button').addEventListener('click', function () { closeModal('admin-register-modal'); });
       document.getElementById('admin-next-id-button').addEventListener('click', function () { syncModelFromSpecs(); fetchNextBatteryId(); });
-      document.getElementById('admin-chem').addEventListener('change', function () { syncModelFromSpecs(); fetchNextBatteryId(); });
-      document.getElementById('admin-cells').addEventListener('input', function () { syncModelFromSpecs(); fetchNextBatteryId(); });
-      document.getElementById('admin-capacity').addEventListener('input', function () { syncModelFromSpecs(); fetchNextBatteryId(); });
+      document.getElementById('admin-chem').addEventListener('change', function () { handleRegisterSelectChange('chem'); });
+      document.getElementById('admin-cells').addEventListener('change', function () { handleRegisterSelectChange('cells'); });
+      document.getElementById('admin-capacity').addEventListener('change', function () { handleRegisterSelectChange('capacity'); });
+      document.getElementById('admin-max-cycles').addEventListener('change', function () { handleRegisterSelectChange('maxCycles'); });
+      document.getElementById('admin-chem-custom-add-button').addEventListener('click', function () { confirmCustomRegisterOption('chem'); });
+      document.getElementById('admin-cells-custom-add-button').addEventListener('click', function () { confirmCustomRegisterOption('cells'); });
+      document.getElementById('admin-capacity-custom-add-button').addEventListener('click', function () { confirmCustomRegisterOption('capacity'); });
+      document.getElementById('admin-max-cycles-custom-add-button').addEventListener('click', function () { confirmCustomRegisterOption('maxCycles'); });
       document.getElementById('admin-label-size').addEventListener('change', function () {
         if (lastRegisteredBattery) {
           renderAdminLabelPreview(lastRegisteredBattery);
@@ -1374,19 +1676,35 @@
     <div class="brand-card max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl p-6">
       <p class="section-label text-sm font-semibold text-marine">Register</p>
       <h2 class="mt-1 text-2xl font-bold text-gray-900">배터리 등록</h2>
-      <p class="mt-2 text-sm text-gray-500">스프레드시트 Batteries 시트 양식과 동일하게 입력합니다.</p>
+      <p class="mt-2 text-sm text-gray-500">항목별 드롭다운에서 선택합니다. 목록에 없으면 맨 아래 "+ 직접 추가…"로 등록하면 이후 선택지에 남습니다.</p>
 
       <label for="admin-chem" class="mt-5 block text-sm font-semibold text-gray-700">배터리 종류 (BatteryID용)</label>
       <select id="admin-chem" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"></select>
+      <div id="admin-chem-custom-panel" class="mt-3 hidden rounded-xl border border-dashed border-marine/40 bg-marine-light/40 p-3">
+        <p class="text-xs font-semibold text-marine">새 배터리 종류 추가</p>
+        <div class="mt-2 grid grid-cols-2 gap-2">
+          <input id="admin-chem-custom-code" type="text" maxlength="3" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm uppercase outline-none focus:border-marine" placeholder="코드 (LPO)">
+          <input id="admin-chem-custom-label" type="text" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-marine" placeholder="표시 이름">
+        </div>
+        <button id="admin-chem-custom-add-button" type="button" class="mt-2 w-full rounded-lg bg-marine px-3 py-2 text-sm font-semibold text-white">선택지에 추가</button>
+      </div>
 
       <div class="mt-4 grid grid-cols-2 gap-3">
         <div>
           <label for="admin-cells" class="block text-sm font-semibold text-gray-700">셀 수 (S)</label>
-          <input id="admin-cells" type="number" min="1" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-lg outline-none focus:border-marine focus:ring-2 focus:ring-marine/20" placeholder="6">
+          <select id="admin-cells" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"></select>
+          <div id="admin-cells-custom-panel" class="mt-2 hidden rounded-xl border border-dashed border-marine/40 bg-marine-light/40 p-3">
+            <input id="admin-cells-custom-value" type="number" min="1" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-marine" placeholder="예: 7">
+            <button id="admin-cells-custom-add-button" type="button" class="mt-2 w-full rounded-lg bg-marine px-3 py-2 text-sm font-semibold text-white">선택지에 추가</button>
+          </div>
         </div>
         <div>
           <label for="admin-capacity" class="block text-sm font-semibold text-gray-700">용량 (mAh)</label>
-          <input id="admin-capacity" type="number" min="1" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-lg outline-none focus:border-marine focus:ring-2 focus:ring-marine/20" placeholder="22000">
+          <select id="admin-capacity" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"></select>
+          <div id="admin-capacity-custom-panel" class="mt-2 hidden rounded-xl border border-dashed border-marine/40 bg-marine-light/40 p-3">
+            <input id="admin-capacity-custom-value" type="number" min="1" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-marine" placeholder="예: 25000">
+            <button id="admin-capacity-custom-add-button" type="button" class="mt-2 w-full rounded-lg bg-marine px-3 py-2 text-sm font-semibold text-white">선택지에 추가</button>
+          </div>
         </div>
       </div>
 
@@ -1397,14 +1715,18 @@
       </div>
       <p id="admin-id-rule-preview" class="mt-2 text-xs leading-5 text-gray-500">ID 규칙: {종류}-{S}S-{용량Ah}-{순번} 예) LPO-6S-22-001</p>
 
-      <label for="admin-model" class="mt-4 block text-sm font-semibold text-gray-700">Model (B열)</label>
-      <input id="admin-model" type="text" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-lg outline-none focus:border-marine focus:ring-2 focus:ring-marine/20" placeholder="6S 22000mAh (LiPo)">
+      <label for="admin-model" class="mt-4 block text-sm font-semibold text-gray-700">Model (B열, 자동 생성)</label>
+      <input id="admin-model" type="text" readonly class="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-lg text-gray-700 outline-none" placeholder="6S 22000mAh (LiPo)">
 
       <label for="admin-start-date" class="mt-4 block text-sm font-semibold text-gray-700">StartDate (C열)</label>
       <input id="admin-start-date" type="date" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-lg outline-none focus:border-marine focus:ring-2 focus:ring-marine/20">
 
       <label for="admin-max-cycles" class="mt-4 block text-sm font-semibold text-gray-700">MaxCycles (D열)</label>
-      <input id="admin-max-cycles" type="number" min="1" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-lg outline-none focus:border-marine focus:ring-2 focus:ring-marine/20">
+      <select id="admin-max-cycles" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"></select>
+      <div id="admin-max-cycles-custom-panel" class="mt-2 hidden rounded-xl border border-dashed border-marine/40 bg-marine-light/40 p-3">
+        <input id="admin-max-cycles-custom-value" type="number" min="1" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-marine" placeholder="예: 350">
+        <button id="admin-max-cycles-custom-add-button" type="button" class="mt-2 w-full rounded-lg bg-marine px-3 py-2 text-sm font-semibold text-white">선택지에 추가</button>
+      </div>
 
       <div class="mt-5 flex gap-2">
         <button id="admin-register-cancel-button" type="button" class="w-full rounded-xl border border-gray-300 px-4 py-4 text-base font-semibold text-gray-600">취소</button>

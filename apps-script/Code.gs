@@ -9,6 +9,7 @@
  */
 const DEFAULT_ADMIN_PIN = '8842';
 const PIN_PROPERTY_KEY = 'ADMIN_PIN';
+const REGISTER_OPTIONS_KEY = 'REGISTER_OPTIONS';
 
 function jsonResponse_(payload) {
   return ContentService
@@ -45,6 +46,97 @@ function getAdminPin_() {
 
 function verifyAdminPin_(pin) {
   return String(pin || '') === getAdminPin_();
+}
+
+function getRegisterOptions_() {
+  const raw = PropertiesService.getScriptProperties().getProperty(REGISTER_OPTIONS_KEY);
+  if (!raw) {
+    return { chem: [], cells: [], capacity: [], maxCycles: [] };
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      chem: Array.isArray(parsed.chem) ? parsed.chem : [],
+      cells: Array.isArray(parsed.cells) ? parsed.cells : [],
+      capacity: Array.isArray(parsed.capacity) ? parsed.capacity : [],
+      maxCycles: Array.isArray(parsed.maxCycles) ? parsed.maxCycles : [],
+    };
+  } catch (err) {
+    return { chem: [], cells: [], capacity: [], maxCycles: [] };
+  }
+}
+
+function saveRegisterOptions_(options) {
+  PropertiesService.getScriptProperties().setProperty(
+    REGISTER_OPTIONS_KEY,
+    JSON.stringify(options)
+  );
+}
+
+function normalizeRegisterOptionItem_(type, value, label) {
+  if (type === 'chem') {
+    const code = normalizeBatteryId_(value);
+    const display = String(label || code).trim();
+    if (!/^[A-Z]{2,3}$/.test(code)) {
+      throw new Error('종류 코드는 영문 2~3자여야 합니다.');
+    }
+    if (!display) {
+      throw new Error('종류 표시 이름이 필요합니다.');
+    }
+    return { value: code, label: display };
+  }
+
+  const num = Math.floor(Number(value));
+  if (!num || num <= 0) {
+    throw new Error('올바른 숫자를 입력해 주세요.');
+  }
+
+  return String(num);
+}
+
+function addRegisterOption_(type, value, label, pin) {
+  if (!verifyAdminPin_(pin)) {
+    throw new Error('관리자 PIN이 올바르지 않습니다.');
+  }
+
+  const allowed = { chem: true, cells: true, capacity: true, maxCycles: true };
+  if (!allowed[type]) {
+    throw new Error('지원하지 않는 선택지 유형입니다.');
+  }
+
+  const item = normalizeRegisterOptionItem_(type, value, label);
+  const options = getRegisterOptions_();
+  const list = options[type];
+
+  if (type === 'chem') {
+    if (list.some(function (entry) { return entry.value === item.value; })) {
+      return options;
+    }
+    list.push(item);
+  } else if (list.indexOf(item) !== -1) {
+    return options;
+  } else {
+    list.push(item);
+    list.sort(function (a, b) { return Number(a) - Number(b); });
+  }
+
+  saveRegisterOptions_(options);
+  return options;
+}
+
+function handleRegisterOptionsGet_(params) {
+  if (!verifyAdminPin_(params.pin)) {
+    return jsonResponse_({ success: false, error: '관리자 PIN이 올바르지 않습니다.' });
+  }
+
+  return jsonResponse_({ success: true, options: getRegisterOptions_() });
+}
+
+function handleAddRegisterOption_(params) {
+  const type = String(params.optionType || '').trim();
+  const options = addRegisterOption_(type, params.value, params.label, params.pin);
+  return jsonResponse_({ success: true, options: options });
 }
 
 function normalizeBatteryId_(value) {
@@ -153,6 +245,9 @@ function parseRequestParams_(e) {
     capacity: '',
     oldPin: '',
     newPin: '',
+    optionType: '',
+    value: '',
+    label: '',
   };
 
   if (e && e.parameter) {
@@ -168,6 +263,9 @@ function parseRequestParams_(e) {
     params.capacity = String(e.parameter.capacity || '').trim();
     params.oldPin = String(e.parameter.oldPin || '').trim();
     params.newPin = String(e.parameter.newPin || '').trim();
+    params.optionType = String(e.parameter.optionType || '').trim();
+    params.value = String(e.parameter.value || '').trim();
+    params.label = String(e.parameter.label || '').trim();
   }
 
   if (e && e.postData && e.postData.contents) {
@@ -337,6 +435,10 @@ function doGet(e) {
       return handleNextId_(params, sheets.batteriesSheet);
     }
 
+    if (action === 'registeroptions') {
+      return handleRegisterOptionsGet_(params);
+    }
+
     const batteryId = normalizeBatteryId_(params.id);
 
     if (!batteryId) {
@@ -374,6 +476,10 @@ function doPost(e) {
 
     if (params.action === 'changepin') {
       return handleChangePin_(params);
+    }
+
+    if (params.action === 'addregisteroption') {
+      return handleAddRegisterOption_(params);
     }
 
     return handleChargingLog_(params);
