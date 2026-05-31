@@ -911,15 +911,16 @@
         try {
           const url = getActiveApiUrl()
             + '?action=batterylist&pin=' + encodeURIComponent(adminPinValue);
-          const response = await fetch(url, { method: 'GET' });
-          const data = await response.json();
+          const response = await fetch(url, { method: 'GET', redirect: 'follow' });
+          const text = await response.text();
+          const data = JSON.parse(text);
           if (data.success && Array.isArray(data.batteries)) {
             batteryListCache = data.batteries;
             saveLocalBatteryList(batteryListCache);
             return batteryListCache;
           }
         } catch (err) {
-          // 로컬 캐시로 계속
+          // 목록 API 미배포 또는 네트워크 오류 — 직접 입력으로 계속
         }
         return loadLocalBatteryList();
       })();
@@ -1092,11 +1093,6 @@
           if (reprintInputMode === 'input') {
             showReprintSuggestions();
           }
-          return;
-        }
-
-        if (!cachedList.length) {
-          showToast('배터리 목록을 불러오지 못했습니다. ID를 직접 입력해 주세요.', 'error');
         }
       });
     }
