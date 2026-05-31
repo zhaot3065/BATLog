@@ -25,7 +25,7 @@
     };
   </script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
   <style>
     body {
       font-family: 'Pretendard', 'Inter', 'Malgun Gothic', sans-serif;
@@ -70,6 +70,79 @@
       transform: scale(0.98);
     }
 
+    .modal-scroll-shell {
+      max-height: 90vh;
+      overflow: hidden;
+    }
+
+    .modal-scroll-shell--tall {
+      max-height: 92vh;
+    }
+
+    .modal-scroll-body {
+      max-height: inherit;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 1.5rem;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(34, 34, 34, 0.25) transparent;
+    }
+
+    .modal-scroll-body::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .modal-scroll-body::-webkit-scrollbar-track {
+      background: transparent;
+      margin-block: 12px;
+    }
+
+    .modal-scroll-body::-webkit-scrollbar-thumb {
+      background-color: rgba(34, 34, 34, 0.25);
+      border-radius: 999px;
+    }
+
+    .reprint-suggest-wrap {
+      position: relative;
+    }
+
+    .reprint-suggest-list {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 4px);
+      z-index: 60;
+      max-height: 240px;
+      overflow-y: auto;
+      border: 1px solid #e0e0e0;
+      border-radius: 0.75rem;
+      background: #fff;
+      box-shadow: 0 12px 32px rgba(34, 34, 34, 0.12);
+    }
+
+    .reprint-suggest-item {
+      display: flex;
+      width: 100%;
+      flex-direction: column;
+      gap: 2px;
+      border: 0;
+      border-bottom: 1px solid #f0f1f3;
+      background: #fff;
+      padding: 0.75rem 1rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .reprint-suggest-item:last-child {
+      border-bottom: 0;
+    }
+
+    .reprint-suggest-item:hover,
+    .reprint-suggest-item:focus {
+      background: #e6f7fb;
+      outline: none;
+    }
+
     .toast-enter {
       animation: toast-in 0.25s ease-out forwards;
     }
@@ -109,6 +182,21 @@
       animation: spin 0.8s linear infinite;
     }
 
+    .btn-spinner {
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .btn-spinner-dark {
+      border-color: rgba(0, 168, 212, 0.2);
+      border-top-color: #00a8d4;
+    }
+
     @keyframes spin {
       to {
         transform: rotate(360deg);
@@ -118,10 +206,16 @@
 </head>
 <body class="min-h-screen text-gray-800">
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbyma8n8Y4NIqZHcgjOdCUqRQUWpTNLOQLOkIItmM-JKseLNsux9ZpSbmK4pmPXhPk10Yw/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycby9XEf0vGFWsXXcXU6RPbUFW7SEr-IdcECnL8WceD5DdsrBYiYDaZSafI6VOsah_o1qAA/exec';
 
     // 시트 D열(MaxCycles)이 비어 있을 때 사용할 기본 수명. 0이면 기본값 없음.
     const DEFAULT_MAX_CYCLES = 300;
+    const REGISTER_FORM_DEFAULTS = {
+      chem: 'LPO',
+      cells: '7',
+      capacity: '35000',
+      maxCycles: String(DEFAULT_MAX_CYCLES),
+    };
     // 권장 수명의 몇 %부터 '임박' 경고를 표시할지 (0.9 = 90%)
     const LIFECYCLE_WARNING_RATIO = 0.9;
     const ACCESS_SESSION_KEY = 'batlog.qr.access';
@@ -139,6 +233,7 @@
 
     const CUSTOM_OPTION_VALUE = '__custom__';
     const REGISTER_OPTIONS_STORAGE_KEY = 'batlog.register.options';
+    const BATTERY_LIST_STORAGE_KEY = 'batlog.battery.list';
     const DEFAULT_CELL_OPTIONS = ['4', '6', '7', '18'];
     const DEFAULT_CAPACITY_OPTIONS = [
       '1380', '2200', '3400', '4200', '5200', '6000', '8000', '8200', '10000',
@@ -207,6 +302,14 @@
     let activeApiUrl = null;
     let adminPinValue = '';
     let lastRegisteredBattery = null;
+    let loadingOverlayCount = 0;
+    let registerInitCache = null;
+    let registerInitCacheKey = '';
+    let registerPrefetchPromise = null;
+    let batteryListCache = null;
+    let batteryListFetchPromise = null;
+    let reprintInputMode = 'input';
+    let reprintSuggestHideTimer = null;
 
     function hasAdminSession() {
       return sessionStorage.getItem(ADMIN_SESSION_KEY) === '1';
@@ -230,9 +333,11 @@
       const loggedIn = hasAdminSession();
       const registerBtn = document.getElementById('header-battery-register-btn');
       const registerBtnMobile = document.getElementById('header-battery-register-btn-mobile');
+      const reprintBtn = document.getElementById('header-battery-reprint-btn');
+      const reprintBtnMobile = document.getElementById('header-battery-reprint-btn-mobile');
       const adminBtn = document.getElementById('header-admin-btn');
 
-      [registerBtn, registerBtnMobile].forEach(function (button) {
+      [registerBtn, registerBtnMobile, reprintBtn, reprintBtnMobile].forEach(function (button) {
         button.disabled = !loggedIn;
         button.classList.toggle('opacity-40', !loggedIn);
         button.classList.toggle('cursor-not-allowed', !loggedIn);
@@ -332,6 +437,143 @@
       } catch (err) {
         // 로컬 선택지로 계속 진행
       }
+    }
+
+    function getRegisterInitCacheKey(chem, cells, capacity) {
+      return String(chem) + '|' + String(cells) + '|' + String(capacity);
+    }
+
+    function getCurrentRegisterDefaults() {
+      return {
+        chem: getSelectedRegisterValue('chem') || REGISTER_FORM_DEFAULTS.chem,
+        cells: getSelectedRegisterValue('cells') || REGISTER_FORM_DEFAULTS.cells,
+        capacity: getSelectedRegisterValue('capacity') || REGISTER_FORM_DEFAULTS.capacity,
+        maxCycles: getSelectedRegisterValue('maxCycles') || REGISTER_FORM_DEFAULTS.maxCycles,
+      };
+    }
+
+    function applyNextBatteryIdData(data) {
+      if (!data || !data.nextId) {
+        return;
+      }
+
+      const idInput = document.getElementById('admin-battery-id');
+      idInput.value = data.nextId;
+      idInput.placeholder = '';
+
+      if (data.prefix) {
+        const cells = getSelectedRegisterValue('cells') || REGISTER_FORM_DEFAULTS.cells;
+        document.getElementById('admin-id-rule-preview').textContent =
+          '규칙: {종류}-' + cells + 'S-{용량Ah}-' + '{순번} → ' + data.prefix + '-XXX';
+      }
+    }
+
+    function applyRegisterInitData(data) {
+      if (!data) {
+        return;
+      }
+
+      const current = getCurrentRegisterDefaults();
+      if (data.options) {
+        mergeRegisterOptionsFromServer(data.options);
+        refreshAllRegisterSelects(current);
+        syncModelFromSpecs();
+      }
+      applyNextBatteryIdData(data);
+    }
+
+    function prepareRegisterFormLocally(defaults) {
+      loadLocalRegisterOptions();
+      document.getElementById('admin-start-date').value = new Date().toISOString().slice(0, 10);
+      refreshAllRegisterSelects(defaults || REGISTER_FORM_DEFAULTS);
+      syncModelFromSpecs();
+      document.getElementById('admin-battery-id').value = '';
+      document.getElementById('admin-battery-id').placeholder = '자동 생성 중...';
+    }
+
+    async function fetchRegisterInitData(chem, cells, capacity) {
+      if (!adminPinValue) {
+        return null;
+      }
+
+      chem = chem || REGISTER_FORM_DEFAULTS.chem;
+      cells = cells || REGISTER_FORM_DEFAULTS.cells;
+      capacity = capacity || REGISTER_FORM_DEFAULTS.capacity;
+
+      try {
+        const url = getActiveApiUrl()
+          + '?action=registerinit&pin=' + encodeURIComponent(adminPinValue)
+          + '&chem=' + encodeURIComponent(chem)
+          + '&cells=' + encodeURIComponent(cells)
+          + '&capacity=' + encodeURIComponent(capacity);
+        const response = await fetch(url, { method: 'GET' });
+        const data = await response.json();
+        if (data.success) {
+          registerInitCache = data;
+          registerInitCacheKey = getRegisterInitCacheKey(chem, cells, capacity);
+          return data;
+        }
+      } catch (err) {
+        // 구버전 API 또는 네트워크 오류
+      }
+
+      await Promise.all([fetchServerRegisterOptions(), fetchNextBatteryId()]);
+      return null;
+    }
+
+    function prefetchRegisterScreen() {
+      if (!adminPinValue) {
+        return null;
+      }
+
+      registerPrefetchPromise = fetchRegisterInitData(
+        REGISTER_FORM_DEFAULTS.chem,
+        REGISTER_FORM_DEFAULTS.cells,
+        REGISTER_FORM_DEFAULTS.capacity
+      ).finally(function () {
+        registerPrefetchPromise = null;
+      });
+
+      return registerPrefetchPromise;
+    }
+
+    async function refreshRegisterFormFromServer(defaults) {
+      defaults = defaults || REGISTER_FORM_DEFAULTS;
+      const cacheKey = getRegisterInitCacheKey(defaults.chem, defaults.cells, defaults.capacity);
+      const idInput = document.getElementById('admin-battery-id');
+
+      if (registerInitCache && registerInitCacheKey === cacheKey) {
+        applyRegisterInitData(registerInitCache);
+        prefetchRegisterScreen();
+        return;
+      }
+
+      idInput.placeholder = '자동 생성 중...';
+
+      let data = null;
+      if (registerPrefetchPromise) {
+        try {
+          data = await registerPrefetchPromise;
+        } catch (err) {
+          data = null;
+        }
+      }
+
+      if (!data || registerInitCacheKey !== cacheKey) {
+        try {
+          data = await fetchRegisterInitData(defaults.chem, defaults.cells, defaults.capacity);
+        } catch (err) {
+          data = null;
+        }
+      }
+
+      if (data) {
+        applyRegisterInitData(data);
+      } else if (!idInput.value) {
+        idInput.placeholder = '「자동」 버튼으로 생성';
+      }
+
+      prefetchRegisterScreen();
     }
 
     async function persistCustomOptionToServer(type, item) {
@@ -485,7 +727,7 @@
       return select.value;
     }
 
-    function handleRegisterSelectChange(type) {
+    async function handleRegisterSelectChange(type) {
       const select = document.getElementById(getRegisterSelectId(type));
       if (select.value === CUSTOM_OPTION_VALUE) {
         showCustomPanel(type);
@@ -494,7 +736,21 @@
 
       hideCustomPanel(type);
       syncModelFromSpecs();
-      fetchNextBatteryId();
+
+      if (type === 'maxCycles') {
+        return;
+      }
+
+      const idInput = document.getElementById('admin-battery-id');
+      idInput.value = '';
+      idInput.placeholder = '생성 중...';
+      try {
+        await fetchNextBatteryId();
+      } finally {
+        if (!idInput.value) {
+          idInput.placeholder = '「자동」 버튼으로 생성';
+        }
+      }
     }
 
     async function confirmCustomRegisterOption(type) {
@@ -522,14 +778,19 @@
         item = String(num);
       }
 
-      addCustomOptionToStore(type, item);
-      await persistCustomOptionToServer(type, item);
-      refreshAllRegisterSelects();
-      document.getElementById(getRegisterSelectId(type)).value = typeof item === 'object' ? item.value : item;
-      hideCustomPanel(type);
-      syncModelFromSpecs();
-      fetchNextBatteryId();
-      showToast('선택지에 추가되었습니다.', 'success');
+      showLoading(true, '선택지 저장 중...');
+      try {
+        addCustomOptionToStore(type, item);
+        await persistCustomOptionToServer(type, item);
+        refreshAllRegisterSelects();
+        document.getElementById(getRegisterSelectId(type)).value = typeof item === 'object' ? item.value : item;
+        hideCustomPanel(type);
+        syncModelFromSpecs();
+        await fetchNextBatteryId();
+        showToast('선택지에 추가되었습니다.', 'success');
+      } finally {
+        showLoading(false);
+      }
     }
 
     function buildModelName(chem, cells, capacity) {
@@ -560,10 +821,10 @@
     function getLabelSizeConfig() {
       const selected = document.getElementById('admin-label-size').value;
       const map = {
-        '640x400': { width: 640, height: 400, qrSize: 220, titleSize: 30, bodySize: 18, brandSize: 16 },
-        '820x520': { width: 820, height: 520, qrSize: 300, titleSize: 44, bodySize: 26, brandSize: 22 },
-        '1200x760': { width: 1200, height: 760, qrSize: 420, titleSize: 56, bodySize: 32, brandSize: 28 },
-        '1600x1000': { width: 1600, height: 1000, qrSize: 560, titleSize: 72, bodySize: 40, brandSize: 34 },
+        '640x400': { width: 640, height: 400, titleSize: 30, bodySize: 18, brandSize: 16 },
+        '820x520': { width: 820, height: 520, titleSize: 44, bodySize: 26, brandSize: 22 },
+        '1200x760': { width: 1200, height: 760, titleSize: 56, bodySize: 32, brandSize: 28 },
+        '1600x1000': { width: 1600, height: 1000, titleSize: 72, bodySize: 40, brandSize: 34 },
       };
       return map[selected] || map['820x520'];
     }
@@ -583,29 +844,290 @@
         return;
       }
 
-      loadLocalRegisterOptions();
-      await fetchServerRegisterOptions();
-      document.getElementById('admin-start-date').value = new Date().toISOString().slice(0, 10);
-      refreshAllRegisterSelects({
-        chem: 'LPO',
-        cells: '7',
-        capacity: '35000',
-        maxCycles: String(DEFAULT_MAX_CYCLES),
-      });
-      syncModelFromSpecs();
-      fetchNextBatteryId();
+      prepareRegisterFormLocally();
       openModal('admin-register-modal');
+      refreshRegisterFormFromServer().catch(function () {
+        const idInput = document.getElementById('admin-battery-id');
+        if (!idInput.value) {
+          idInput.placeholder = '「자동」 버튼으로 생성';
+        }
+      });
     }
 
-    function openAdminLabelModal(battery) {
+    async function openAdminLabelModal(battery) {
       lastRegisteredBattery = battery;
       document.getElementById('admin-label-id').textContent = battery.id;
       document.getElementById('admin-label-model').textContent = battery.model;
       document.getElementById('admin-label-start-date').textContent = battery.startDate;
       document.getElementById('admin-label-max-cycles').textContent = String(battery.maxCycles) + '회';
       document.getElementById('admin-label-qr-text').textContent = buildQrPayloadText(battery.id);
-      renderAdminLabelPreview(battery);
       openModal('admin-label-modal');
+      showLoading(true, 'QR 라벨 미리보기 생성 중...');
+      try {
+        await renderAdminLabelPreview(battery);
+      } catch (err) {
+        showToast(err.message || 'QR 라벨 미리보기 생성에 실패했습니다.', 'error');
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function resolveReprintInput(rawValue) {
+      const payload = parseQrPayload(rawValue);
+      if (payload.batteryId) {
+        if (payload.apiUrl) {
+          setActiveApiUrl(payload.apiUrl);
+        }
+        return payload.batteryId;
+      }
+      return extractBatteryId(rawValue);
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    async function fetchBatteryList(forceRefresh) {
+      if (!forceRefresh) {
+        loadLocalBatteryList();
+        if (batteryListCache && batteryListCache.length) {
+          return batteryListCache;
+        }
+      }
+
+      if (!adminPinValue) {
+        return loadLocalBatteryList();
+      }
+
+      if (batteryListFetchPromise) {
+        return batteryListFetchPromise;
+      }
+
+      batteryListFetchPromise = (async function () {
+        try {
+          const url = getActiveApiUrl()
+            + '?action=batterylist&pin=' + encodeURIComponent(adminPinValue);
+          const response = await fetch(url, { method: 'GET' });
+          const data = await response.json();
+          if (data.success && Array.isArray(data.batteries)) {
+            batteryListCache = data.batteries;
+            saveLocalBatteryList(batteryListCache);
+            return batteryListCache;
+          }
+        } catch (err) {
+          // 로컬 캐시로 계속
+        }
+        return loadLocalBatteryList();
+      })();
+
+      try {
+        return await batteryListFetchPromise;
+      } finally {
+        batteryListFetchPromise = null;
+      }
+    }
+
+    function loadLocalBatteryList() {
+      if (batteryListCache && batteryListCache.length) {
+        return batteryListCache;
+      }
+
+      try {
+        const raw = localStorage.getItem(BATTERY_LIST_STORAGE_KEY);
+        if (!raw) {
+          return [];
+        }
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          batteryListCache = parsed;
+          return batteryListCache;
+        }
+      } catch (err) {
+        batteryListCache = [];
+      }
+
+      return batteryListCache || [];
+    }
+
+    function saveLocalBatteryList(batteries) {
+      try {
+        localStorage.setItem(BATTERY_LIST_STORAGE_KEY, JSON.stringify(batteries));
+      } catch (err) {
+        // 저장 실패는 무시
+      }
+    }
+
+    function filterBatteryList(query) {
+      const list = batteryListCache || loadLocalBatteryList();
+      const normalizedQuery = String(query || '').trim().toUpperCase();
+
+      if (!normalizedQuery) {
+        return list.slice(0, 15);
+      }
+
+      return list.filter(function (item) {
+        const id = String(item.id || '').toUpperCase();
+        const model = String(item.model || '').toUpperCase();
+        return id.indexOf(normalizedQuery) !== -1 || model.indexOf(normalizedQuery) !== -1;
+      }).slice(0, 15);
+    }
+
+    function hideReprintSuggestions(delay) {
+      clearTimeout(reprintSuggestHideTimer);
+      reprintSuggestHideTimer = setTimeout(function () {
+        const box = document.getElementById('admin-reprint-suggestions');
+        if (box) {
+          box.classList.add('hidden');
+        }
+      }, delay == null ? 150 : delay);
+    }
+
+    function renderReprintSuggestions(query) {
+      const box = document.getElementById('admin-reprint-suggestions');
+      if (!box) {
+        return;
+      }
+
+      const matches = filterBatteryList(query);
+      if (!matches.length) {
+        box.classList.add('hidden');
+        box.innerHTML = '';
+        return;
+      }
+
+      let html = '';
+      matches.forEach(function (item) {
+        html += '<button type="button" class="reprint-suggest-item" data-id="' + escapeHtml(item.id) + '">'
+          + '<span class="text-base font-bold uppercase text-gray-900">' + escapeHtml(item.id) + '</span>';
+        if (item.model) {
+          html += '<span class="text-sm text-gray-500">' + escapeHtml(item.model) + '</span>';
+        }
+        html += '</button>';
+      });
+
+      box.innerHTML = html;
+      box.classList.remove('hidden');
+    }
+
+    function showReprintSuggestions() {
+      clearTimeout(reprintSuggestHideTimer);
+      renderReprintSuggestions(document.getElementById('admin-reprint-input').value);
+    }
+
+    function populateReprintBatteryOptions(batteries) {
+      const select = document.getElementById('admin-reprint-select');
+      let selectHtml = '<option value="">Battery ID 선택</option>';
+
+      batteries.forEach(function (item) {
+        const label = item.model ? item.id + ' — ' + item.model : item.id;
+        selectHtml += '<option value="' + escapeHtml(item.id) + '">' + escapeHtml(label) + '</option>';
+      });
+
+      select.innerHTML = selectHtml;
+    }
+
+    function setReprintInputMode(mode) {
+      reprintInputMode = mode;
+      const inputWrap = document.getElementById('admin-reprint-input-wrap');
+      const selectWrap = document.getElementById('admin-reprint-select-wrap');
+      const inputBtn = document.getElementById('admin-reprint-mode-input');
+      const selectBtn = document.getElementById('admin-reprint-mode-select');
+      const isInput = mode === 'input';
+
+      inputWrap.classList.toggle('hidden', !isInput);
+      selectWrap.classList.toggle('hidden', isInput);
+
+      [inputBtn, selectBtn].forEach(function (button) {
+        button.classList.remove('border-marine', 'bg-marine-light', 'text-marine', 'border-gray-300', 'bg-white', 'text-gray-700');
+      });
+
+      if (isInput) {
+        inputBtn.classList.add('border-marine', 'bg-marine-light', 'text-marine');
+        selectBtn.classList.add('border-gray-300', 'bg-white', 'text-gray-700');
+        document.getElementById('admin-reprint-input').focus();
+        showReprintSuggestions();
+      } else {
+        selectBtn.classList.add('border-marine', 'bg-marine-light', 'text-marine');
+        inputBtn.classList.add('border-gray-300', 'bg-white', 'text-gray-700');
+        hideReprintSuggestions(0);
+        document.getElementById('admin-reprint-select').focus();
+      }
+    }
+
+    function getReprintRawValue() {
+      if (reprintInputMode === 'select') {
+        return document.getElementById('admin-reprint-select').value.trim();
+      }
+      return document.getElementById('admin-reprint-input').value.trim();
+    }
+
+    function openAdminReprintModal() {
+      if (!hasAdminSession()) {
+        openAdminLoginModal();
+        return;
+      }
+      if (!adminPinValue) {
+        showToast('관리자 PIN을 다시 입력해 주세요.', 'error');
+        openAdminLoginModal();
+        return;
+      }
+      document.getElementById('admin-reprint-input').value = '';
+      document.getElementById('admin-reprint-select').value = '';
+      hideReprintSuggestions(0);
+      setReprintInputMode('input');
+      openModal('admin-reprint-modal');
+
+      const cachedList = loadLocalBatteryList();
+      if (cachedList.length) {
+        populateReprintBatteryOptions(cachedList);
+      }
+
+      fetchBatteryList(true).then(function (list) {
+        if (list.length) {
+          populateReprintBatteryOptions(list);
+          if (reprintInputMode === 'input') {
+            showReprintSuggestions();
+          }
+          return;
+        }
+
+        if (!cachedList.length) {
+          showToast('배터리 목록을 불러오지 못했습니다. ID를 직접 입력해 주세요.', 'error');
+        }
+      });
+    }
+
+    async function submitAdminReprintLookup() {
+      const rawValue = getReprintRawValue();
+      const batteryId = resolveReprintInput(rawValue);
+      const reprintBtn = document.getElementById('admin-reprint-button');
+
+      if (!batteryId) {
+        alert('Battery ID 또는 QR 내용을 입력해 주세요.');
+        return;
+      }
+
+      setButtonBusy(reprintBtn, true, '조회 중...');
+      showLoading(true, '배터리 정보 조회 중...');
+      try {
+        const data = await fetchBatteryInfo(batteryId);
+        closeModal('admin-reprint-modal');
+        await openAdminLabelModal({
+          id: data.id,
+          model: data.model,
+          startDate: data.startDate,
+          maxCycles: getEffectiveMaxCycles(data.maxCycles),
+        });
+      } catch (err) {
+        showToast(err.message || '등록된 배터리를 찾을 수 없습니다.', 'error');
+      } finally {
+        setButtonBusy(reprintBtn, false);
+        showLoading(false);
+      }
     }
 
     async function fetchNextBatteryId() {
@@ -626,9 +1148,7 @@
         const response = await fetch(url, { method: 'GET' });
         const data = await response.json();
         if (data.success) {
-          document.getElementById('admin-battery-id').value = data.nextId;
-          document.getElementById('admin-id-rule-preview').textContent =
-            '규칙: {종류}-' + cells + 'S-{용량Ah}-' + '{순번} → ' + data.prefix + '-XXX';
+          applyNextBatteryIdData(data);
         }
       } catch (err) {
         // 수동 입력 가능
@@ -637,12 +1157,15 @@
 
     async function submitAdminLogin() {
       const pin = document.getElementById('admin-pin-input').value.trim();
+      const loginBtn = document.getElementById('admin-login-button');
+
       if (!pin) {
         alert('관리자 PIN을 입력해 주세요.');
         return;
       }
 
-      showLoading(true);
+      setButtonBusy(loginBtn, true, '로그인 중...');
+      showLoading(true, '관리자 PIN 확인 중...');
       try {
         const url = getActiveApiUrl() + '?action=verifypin&pin=' + encodeURIComponent(pin);
         const response = await fetch(url, { method: 'GET' });
@@ -653,9 +1176,12 @@
         grantAdminSession(pin);
         closeModal('admin-login-modal');
         showToast('관리자 로그인되었습니다.', 'success');
+        prefetchRegisterScreen();
+        fetchBatteryList();
       } catch (err) {
         alert(err.message || '관리자 PIN이 올바르지 않습니다.');
       } finally {
+        setButtonBusy(loginBtn, false);
         showLoading(false);
       }
     }
@@ -664,6 +1190,7 @@
       const oldPin = document.getElementById('admin-old-pin-input').value.trim();
       const newPin = document.getElementById('admin-new-pin-input').value.trim();
       const confirmPin = document.getElementById('admin-confirm-pin-input').value.trim();
+      const changeBtn = document.getElementById('admin-pin-change-button');
 
       if (!oldPin || !newPin || !confirmPin) {
         alert('모든 PIN 항목을 입력해 주세요.');
@@ -675,7 +1202,8 @@
         return;
       }
 
-      showLoading(true);
+      setButtonBusy(changeBtn, true, '변경 중...');
+      showLoading(true, 'PIN 변경 중...');
       try {
         const formData = new URLSearchParams();
         formData.append('action', 'changepin');
@@ -701,6 +1229,7 @@
       } catch (err) {
         showToast(err.message || 'PIN 변경에 실패했습니다.', 'error');
       } finally {
+        setButtonBusy(changeBtn, false);
         showLoading(false);
       }
     }
@@ -708,13 +1237,15 @@
     async function submitBatteryRegister() {
       syncModelFromSpecs();
       const form = getRegisterFormValues();
+      const registerBtn = document.getElementById('admin-register-button');
 
       if (!form.batteryId || !form.model || !form.startDate || !form.maxCycles || !form.chem || !form.cells || !form.capacity) {
         alert('모든 항목을 선택해 주세요. 목록에 없으면 "+ 직접 추가…"로 등록할 수 있습니다.');
         return;
       }
 
-      showLoading(true);
+      setButtonBusy(registerBtn, true, '등록 중...');
+      showLoading(true, '배터리 등록 중...');
       try {
         const formData = new URLSearchParams();
         formData.append('action', 'register');
@@ -735,11 +1266,21 @@
         }
 
         closeModal('admin-register-modal');
-        openAdminLabelModal(data);
-        showToast('배터리가 등록되었습니다.', 'success');
+        loadLocalBatteryList();
+        const registeredEntry = { id: data.id, model: data.model };
+        const alreadyListed = (batteryListCache || []).some(function (item) {
+          return item.id === registeredEntry.id;
+        });
+        if (!alreadyListed) {
+          batteryListCache = (batteryListCache || []).concat([registeredEntry]);
+          batteryListCache.sort(function (a, b) { return a.id.localeCompare(b.id); });
+          saveLocalBatteryList(batteryListCache);
+        }
+        await openAdminLabelModal(data);
       } catch (err) {
         showToast(err.message || '배터리 등록에 실패했습니다.', 'error');
       } finally {
+        setButtonBusy(registerBtn, false);
         showLoading(false);
       }
     }
@@ -755,6 +1296,10 @@
     }
 
     async function buildLabelCanvas(battery) {
+      if (typeof QRCode === 'undefined') {
+        throw new Error('QR 생성 라이브러리를 불러오지 못했습니다. 페이지를 새로고침해 주세요.');
+      }
+
       const config = getLabelSizeConfig();
       const qrText = buildQrPayloadText(battery.id);
       const canvas = document.createElement('canvas');
@@ -762,24 +1307,44 @@
       canvas.height = config.height;
       const ctx = canvas.getContext('2d');
       const pad = Math.round(config.width * 0.04);
-      const qrX = Math.round(config.width * 0.58);
-      const qrY = Math.round(config.height * 0.18);
+      const lineGap = Math.max(6, Math.round(config.bodySize * 0.3));
+      const brandGap = Math.max(8, Math.round(config.bodySize * 0.35));
+      const qrColumnStart = Math.round(config.width * 0.52);
+      const qrAreaWidth = canvas.width - qrColumnStart - pad;
+      const qrAreaHeight = canvas.height - pad * 2;
+      const qrSize = Math.max(48, Math.min(qrAreaWidth, qrAreaHeight));
+      const qrX = qrColumnStart + Math.round((qrAreaWidth - qrSize) / 2);
+      const qrY = pad + Math.round((qrAreaHeight - qrSize) / 2);
+      const fontFamily = 'Pretendard, Malgun Gothic, sans-serif';
+      const textLines = [
+        { text: battery.id, font: 'bold ' + config.titleSize + 'px ' + fontFamily, size: config.titleSize, color: '#222222' },
+        { text: battery.model, font: config.bodySize + 'px ' + fontFamily, size: config.bodySize, color: '#222222' },
+        { text: '시작일 ' + battery.startDate, font: config.bodySize + 'px ' + fontFamily, size: config.bodySize, color: '#222222' },
+        { text: '수명 ' + battery.maxCycles + '회', font: config.bodySize + 'px ' + fontFamily, size: config.bodySize, color: '#222222' },
+        { text: '해양드론기술 BATLog', font: 'bold ' + config.brandSize + 'px ' + fontFamily, size: config.brandSize, color: '#00a8d4', gapBefore: brandGap },
+      ];
+
+      let textBlockHeight = 0;
+      textLines.forEach(function (line, index) {
+        if (index > 0) {
+          textBlockHeight += line.gapBefore != null ? line.gapBefore : lineGap;
+        }
+        textBlockHeight += line.size;
+      });
 
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.fillStyle = '#222222';
-      ctx.font = 'bold ' + config.titleSize + 'px Pretendard, Malgun Gothic, sans-serif';
-      ctx.fillText(battery.id, pad, pad + config.titleSize);
-
-      ctx.font = config.bodySize + 'px Pretendard, Malgun Gothic, sans-serif';
-      ctx.fillText(battery.model, pad, pad + config.titleSize + config.bodySize + 8);
-      ctx.fillText('시작일 ' + battery.startDate, pad, pad + config.titleSize + (config.bodySize + 8) * 2);
-      ctx.fillText('수명 ' + battery.maxCycles + '회', pad, pad + config.titleSize + (config.bodySize + 8) * 3);
-
-      ctx.fillStyle = '#00a8d4';
-      ctx.font = 'bold ' + config.brandSize + 'px Pretendard, Malgun Gothic, sans-serif';
-      ctx.fillText('해양드론기술 BATLog', pad, pad + config.titleSize + (config.bodySize + 8) * 4 + 8);
+      let textY = Math.round((canvas.height - textBlockHeight) / 2);
+      textLines.forEach(function (line, index) {
+        if (index > 0) {
+          textY += line.gapBefore != null ? line.gapBefore : lineGap;
+        }
+        textY += line.size;
+        ctx.fillStyle = line.color;
+        ctx.font = line.font;
+        ctx.fillText(line.text, pad, textY);
+      });
 
       ctx.strokeStyle = '#e0e0e0';
       ctx.lineWidth = 2;
@@ -787,7 +1352,7 @@
 
       const qrCanvas = document.createElement('canvas');
       await QRCode.toCanvas(qrCanvas, qrText, {
-        width: config.qrSize,
+        width: qrSize,
         margin: 1,
         errorCorrectionLevel: 'M',
       });
@@ -797,36 +1362,145 @@
     }
 
     async function buildQrOnlyCanvas(battery) {
+      if (typeof QRCode === 'undefined') {
+        throw new Error('QR 생성 라이브러리를 불러오지 못했습니다.');
+      }
+
       const qrCanvas = document.createElement('canvas');
-      await QRCode.toCanvas(qrCanvas, buildQrPayloadText(battery.id), {
-        width: getQrOnlySize(),
+      const size = getQrOnlySize();
+      const qrText = buildQrPayloadText(battery.id);
+
+      await QRCode.toCanvas(qrCanvas, qrText, {
+        width: size,
         margin: 2,
         errorCorrectionLevel: 'M',
       });
+
+      if (!qrCanvas.width || !qrCanvas.height) {
+        throw new Error('QR 이미지 생성에 실패했습니다.');
+      }
+
       return qrCanvas;
     }
 
-    function downloadCanvas(canvas, filename) {
-      const link = document.createElement('a');
-      link.download = filename;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+    function canvasToBlob(canvas) {
+      return new Promise(function (resolve, reject) {
+        if (!canvas || !canvas.width || !canvas.height) {
+          reject(new Error('다운로드할 이미지가 없습니다.'));
+          return;
+        }
+
+        if (canvas.toBlob) {
+          canvas.toBlob(function (blob) {
+            if (blob) {
+              resolve(blob);
+              return;
+            }
+            reject(new Error('PNG 파일을 만들 수 없습니다.'));
+          }, 'image/png', 1);
+          return;
+        }
+
+        try {
+          const dataUrl = canvas.toDataURL('image/png');
+          const parts = dataUrl.split(',');
+          const binary = atob(parts[1]);
+          const array = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            array[i] = binary.charCodeAt(i);
+          }
+          resolve(new Blob([array], { type: 'image/png' }));
+        } catch (err) {
+          reject(new Error('PNG 파일을 만들 수 없습니다.'));
+        }
+      });
+    }
+
+    function preferShareDownload() {
+      const ua = navigator.userAgent || '';
+      // iOS는 blob 링크 download 속성이 잘 동작하지 않아 공유 API 사용
+      return /iPhone|iPad|iPod/i.test(ua)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    async function downloadCanvas(canvas, filename) {
+      const blob = await canvasToBlob(canvas);
+      const safeName = String(filename || 'BATLog.png').replace(/[\\/:*?"<>|]/g, '_');
+      const file = new File([blob], safeName, { type: 'image/png' });
+
+      if (preferShareDownload() && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: safeName });
+          showToast('공유 메뉴에서 저장을 선택하세요.', 'success');
+          return 'share';
+        } catch (err) {
+          if (err && err.name === 'AbortError') {
+            return 'cancelled';
+          }
+        }
+      }
+
+      const url = URL.createObjectURL(blob);
+      try {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = safeName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast(safeName + ' 다운로드를 시작했습니다.', 'success');
+        return 'download';
+      } catch (err) {
+        const tab = window.open(url, '_blank', 'noopener,noreferrer');
+        if (!tab) {
+          throw new Error('다운로드가 차단되었습니다. 브라우저 팝업 허용을 확인해 주세요.');
+        }
+        showToast('새 탭에서 이미지를 길게 누르거나 우클릭해 저장하세요.', 'success');
+        return 'tab';
+      } finally {
+        setTimeout(function () {
+          URL.revokeObjectURL(url);
+        }, 60000);
+      }
     }
 
     async function downloadLabelPng() {
       if (!lastRegisteredBattery) {
+        showToast('배터리 정보가 없습니다. 다시 조회해 주세요.', 'error');
         return;
       }
-      const canvas = await buildLabelCanvas(lastRegisteredBattery);
-      downloadCanvas(canvas, 'BATLog_' + lastRegisteredBattery.id + '_label.png');
+      const button = document.getElementById('admin-download-label-button');
+      setButtonBusy(button, true, '생성 중...', { darkSpinner: true });
+      showLoading(true, '라벨 PNG 생성 중...');
+      try {
+        const canvas = await buildLabelCanvas(lastRegisteredBattery);
+        await downloadCanvas(canvas, 'BATLog_' + lastRegisteredBattery.id + '_label.png');
+      } catch (err) {
+        showToast(err.message || '라벨 PNG 생성에 실패했습니다.', 'error');
+      } finally {
+        setButtonBusy(button, false, '', { darkSpinner: true });
+        showLoading(false);
+      }
     }
 
     async function downloadQrPng() {
       if (!lastRegisteredBattery) {
+        showToast('배터리 정보가 없습니다. 다시 조회해 주세요.', 'error');
         return;
       }
-      const canvas = await buildQrOnlyCanvas(lastRegisteredBattery);
-      downloadCanvas(canvas, 'BATLog_' + lastRegisteredBattery.id + '_qr.png');
+      const button = document.getElementById('admin-download-qr-button');
+      setButtonBusy(button, true, '생성 중...', { darkSpinner: true });
+      showLoading(true, 'QR PNG 생성 중...');
+      try {
+        const canvas = await buildQrOnlyCanvas(lastRegisteredBattery);
+        await downloadCanvas(canvas, 'BATLog_' + lastRegisteredBattery.id + '_qr.png');
+      } catch (err) {
+        showToast(err.message || 'QR PNG 생성에 실패했습니다.', 'error');
+      } finally {
+        setButtonBusy(button, false, '', { darkSpinner: true });
+        showLoading(false);
+      }
     }
 
     function handleAdminButtonClick() {
@@ -990,8 +1664,54 @@
       return parseQrPayload(window.location.href);
     }
 
-    function showLoading(show) {
-      document.getElementById('loading-overlay').classList.toggle('hidden', !show);
+    function showLoading(show, message) {
+      const overlay = document.getElementById('loading-overlay');
+      const text = document.getElementById('loading-overlay-text');
+
+      if (show) {
+        loadingOverlayCount += 1;
+        text.textContent = message || '처리 중...';
+        overlay.classList.remove('hidden');
+        overlay.setAttribute('aria-hidden', 'false');
+        return;
+      }
+
+      loadingOverlayCount = Math.max(0, loadingOverlayCount - 1);
+      if (loadingOverlayCount === 0) {
+        text.textContent = '처리 중...';
+        overlay.classList.add('hidden');
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    function setButtonBusy(button, busy, busyLabel, options) {
+      if (!button) {
+        return;
+      }
+
+      options = options || {};
+
+      if (busy) {
+        if (!button.dataset.originalHtml) {
+          button.dataset.originalHtml = button.innerHTML;
+        }
+        button.disabled = true;
+        button.classList.add('opacity-80', 'cursor-not-allowed');
+        const spinnerClass = options.darkSpinner ? 'btn-spinner btn-spinner-dark' : 'btn-spinner';
+        button.innerHTML =
+          '<span class="inline-flex items-center justify-center gap-2">'
+          + '<span class="' + spinnerClass + '" aria-hidden="true"></span>'
+          + '<span>' + (busyLabel || '처리 중...') + '</span>'
+          + '</span>';
+        return;
+      }
+
+      button.disabled = false;
+      button.classList.remove('opacity-80', 'cursor-not-allowed');
+      if (button.dataset.originalHtml) {
+        button.innerHTML = button.dataset.originalHtml;
+        delete button.dataset.originalHtml;
+      }
     }
 
     function showToast(message, type) {
@@ -1239,7 +1959,7 @@
         setActiveApiUrl(apiUrl);
       }
 
-      showLoading(true);
+      showLoading(true, '배터리 정보 불러오는 중...');
 
       try {
         const data = await fetchBatteryInfo(batteryId);
@@ -1280,7 +2000,7 @@
       }
 
       disableSubmitButton();
-      showLoading(true);
+      showLoading(true, '충전 기록 저장 중...');
 
       try {
         const formData = new URLSearchParams();
@@ -1386,11 +2106,53 @@
       document.getElementById('header-admin-btn').addEventListener('click', handleAdminButtonClick);
       document.getElementById('header-battery-register-btn').addEventListener('click', openAdminRegisterModal);
       document.getElementById('header-battery-register-btn-mobile').addEventListener('click', openAdminRegisterModal);
+      document.getElementById('header-battery-reprint-btn').addEventListener('click', openAdminReprintModal);
+      document.getElementById('header-battery-reprint-btn-mobile').addEventListener('click', openAdminReprintModal);
+      document.getElementById('admin-reprint-button').addEventListener('click', submitAdminReprintLookup);
+      document.getElementById('admin-reprint-cancel-button').addEventListener('click', function () { closeModal('admin-reprint-modal'); });
+      document.getElementById('admin-reprint-mode-input').addEventListener('click', function () { setReprintInputMode('input'); });
+      document.getElementById('admin-reprint-mode-select').addEventListener('click', function () { setReprintInputMode('select'); });
+      document.getElementById('admin-reprint-input').addEventListener('input', showReprintSuggestions);
+      document.getElementById('admin-reprint-input').addEventListener('focus', showReprintSuggestions);
+      document.getElementById('admin-reprint-input').addEventListener('blur', function () {
+        hideReprintSuggestions(180);
+      });
+      document.getElementById('admin-reprint-suggestions').addEventListener('mousedown', function (event) {
+        const button = event.target.closest('.reprint-suggest-item');
+        if (!button) {
+          return;
+        }
+        event.preventDefault();
+        document.getElementById('admin-reprint-input').value = button.getAttribute('data-id') || '';
+        hideReprintSuggestions(0);
+      });
+      document.getElementById('admin-reprint-input').addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+          submitAdminReprintLookup();
+        }
+      });
+      document.getElementById('admin-reprint-select').addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+          submitAdminReprintLookup();
+        }
+      });
+      document.getElementById('admin-pin-reprint-button').addEventListener('click', function () {
+        closeModal('admin-pin-modal');
+        openAdminReprintModal();
+      });
       document.getElementById('admin-login-button').addEventListener('click', submitAdminLogin);
       document.getElementById('admin-login-cancel-button').addEventListener('click', function () { closeModal('admin-login-modal'); });
       document.getElementById('admin-register-button').addEventListener('click', submitBatteryRegister);
       document.getElementById('admin-register-cancel-button').addEventListener('click', function () { closeModal('admin-register-modal'); });
-      document.getElementById('admin-next-id-button').addEventListener('click', function () { syncModelFromSpecs(); fetchNextBatteryId(); });
+      document.getElementById('admin-next-id-button').addEventListener('click', async function () {
+        syncModelFromSpecs();
+        showLoading(true, 'Battery ID 생성 중...');
+        try {
+          await fetchNextBatteryId();
+        } finally {
+          showLoading(false);
+        }
+      });
       document.getElementById('admin-chem').addEventListener('change', function () { handleRegisterSelectChange('chem'); });
       document.getElementById('admin-cells').addEventListener('change', function () { handleRegisterSelectChange('cells'); });
       document.getElementById('admin-capacity').addEventListener('change', function () { handleRegisterSelectChange('capacity'); });
@@ -1399,9 +2161,14 @@
       document.getElementById('admin-cells-custom-add-button').addEventListener('click', function () { confirmCustomRegisterOption('cells'); });
       document.getElementById('admin-capacity-custom-add-button').addEventListener('click', function () { confirmCustomRegisterOption('capacity'); });
       document.getElementById('admin-max-cycles-custom-add-button').addEventListener('click', function () { confirmCustomRegisterOption('maxCycles'); });
-      document.getElementById('admin-label-size').addEventListener('change', function () {
+      document.getElementById('admin-label-size').addEventListener('change', async function () {
         if (lastRegisteredBattery) {
-          renderAdminLabelPreview(lastRegisteredBattery);
+          showLoading(true, '미리보기 갱신 중...');
+          try {
+            await renderAdminLabelPreview(lastRegisteredBattery);
+          } finally {
+            showLoading(false);
+          }
         }
       });
       document.getElementById('admin-pin-change-button').addEventListener('click', submitPinChange);
@@ -1414,6 +2181,10 @@
       document.getElementById('admin-new-register-button').addEventListener('click', function () {
         closeModal('admin-label-modal');
         openAdminRegisterModal();
+      });
+      document.getElementById('admin-reprint-from-label-button').addEventListener('click', function () {
+        closeModal('admin-label-modal');
+        openAdminReprintModal();
       });
       document.getElementById('admin-label-close-button').addEventListener('click', function () { closeModal('admin-label-modal'); });
       document.getElementById('admin-download-label-button').addEventListener('click', downloadLabelPng);
@@ -1436,6 +2207,11 @@
 
       adminPinValue = sessionStorage.getItem('batlog.admin.pin') || '';
       updateAdminHeaderUi();
+      loadLocalBatteryList();
+      if (adminPinValue) {
+        prefetchRegisterScreen();
+        fetchBatteryList();
+      }
 
       const payloadFromUrl = getUrlPayload();
       if (payloadFromUrl.apiUrl) {
@@ -1478,6 +2254,22 @@
           class="rounded-xl border border-marine/30 bg-marine-light px-2 py-2 text-[11px] font-bold text-marine opacity-40 sm:hidden"
         >
           등록
+        </button>
+        <button
+          id="header-battery-reprint-btn"
+          type="button"
+          disabled
+          class="hidden rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-700 opacity-40 sm:inline-block"
+        >
+          QR 재출력
+        </button>
+        <button
+          id="header-battery-reprint-btn-mobile"
+          type="button"
+          disabled
+          class="rounded-xl border border-gray-300 bg-white px-2 py-2 text-[11px] font-bold text-gray-700 opacity-40 sm:hidden"
+        >
+          QR
         </button>
         <button
           id="header-admin-btn"
@@ -1637,14 +2429,14 @@
     </footer>
   </div>
 
-  <div id="loading-overlay" class="fixed inset-0 z-40 hidden flex items-center justify-center bg-white/70 backdrop-blur-sm">
-    <div class="brand-card flex flex-col items-center gap-4 rounded-2xl px-8 py-7">
-      <div class="spinner"></div>
-      <p class="text-base font-medium text-gray-700">처리 중...</p>
+  <div id="loading-overlay" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-gray-900/30 backdrop-blur-sm" aria-hidden="true" role="status" aria-live="polite">
+    <div class="brand-card flex flex-col items-center gap-4 rounded-2xl px-8 py-7 shadow-xl">
+      <div class="spinner" aria-hidden="true"></div>
+      <p id="loading-overlay-text" class="text-base font-medium text-gray-700">처리 중...</p>
     </div>
   </div>
 
-  <div id="toast" class="fixed bottom-6 left-0 right-0 z-50 hidden px-4">
+  <div id="toast" class="fixed bottom-6 left-0 right-0 z-[110] hidden px-4">
     <div class="mx-auto max-w-lg rounded-2xl px-5 py-4 text-base font-semibold shadow-2xl"></div>
   </div>
 
@@ -1673,13 +2465,51 @@
       <label for="admin-confirm-pin-input" class="mt-4 block text-sm font-semibold text-gray-700">새 PIN 확인</label>
       <input id="admin-confirm-pin-input" type="password" inputmode="numeric" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-lg outline-none focus:border-marine focus:ring-2 focus:ring-marine/20">
       <button id="admin-pin-change-button" type="button" class="brand-btn-primary mt-5 w-full rounded-xl px-4 py-4 text-base font-bold text-white">PIN 변경</button>
+      <button id="admin-pin-reprint-button" type="button" class="mt-3 w-full rounded-xl border border-marine/30 bg-marine-light px-4 py-4 text-base font-semibold text-marine">QR 재출력</button>
       <button id="admin-logout-button" type="button" class="mt-3 w-full rounded-xl border border-gray-300 px-4 py-4 text-base font-semibold text-gray-600">로그아웃</button>
       <button id="admin-pin-cancel-button" type="button" class="mt-3 w-full rounded-xl px-4 py-3 text-sm text-gray-500">닫기</button>
     </div>
   </div>
 
+  <div id="admin-reprint-modal" class="fixed inset-0 z-50 hidden flex items-end justify-center bg-gray-900/40 px-4 pb-6 backdrop-blur-sm sm:items-center">
+    <div class="brand-card w-full max-w-md rounded-2xl p-6">
+      <p class="section-label text-sm font-semibold text-marine">Reprint</p>
+      <h2 class="mt-1 text-2xl font-bold text-gray-900">QR 재출력</h2>
+      <p class="mt-2 text-sm leading-6 text-gray-500">
+        이미 등록된 배터리의 라벨·QR을 다시 만듭니다.<br>
+        Battery ID를 직접 입력하거나 목록에서 선택하세요.
+      </p>
+      <label class="mt-5 block text-sm font-semibold text-gray-700">Battery ID</label>
+      <div class="mt-2 grid grid-cols-2 gap-2">
+        <button id="admin-reprint-mode-input" type="button" class="rounded-xl border border-marine bg-marine-light px-3 py-2.5 text-sm font-semibold text-marine">직접 입력</button>
+        <button id="admin-reprint-mode-select" type="button" class="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700">목록 선택</button>
+      </div>
+      <div id="admin-reprint-input-wrap" class="reprint-suggest-wrap mt-2">
+        <input
+          id="admin-reprint-input"
+          type="text"
+          autocomplete="off"
+          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-lg uppercase outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"
+          placeholder="예: LPO-7S-35-001"
+        >
+        <div id="admin-reprint-suggestions" class="reprint-suggest-list hidden"></div>
+      </div>
+      <div id="admin-reprint-select-wrap" class="mt-2 hidden">
+        <select
+          id="admin-reprint-select"
+          class="w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-base outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"
+        ></select>
+      </div>
+      <div class="mt-5 flex gap-2">
+        <button id="admin-reprint-cancel-button" type="button" class="w-full rounded-xl border border-gray-300 px-4 py-4 text-base font-semibold text-gray-600">취소</button>
+        <button id="admin-reprint-button" type="button" class="brand-btn-primary w-full rounded-xl px-4 py-4 text-base font-bold text-white">조회하고 QR 만들기</button>
+      </div>
+    </div>
+  </div>
+
   <div id="admin-register-modal" class="fixed inset-0 z-50 hidden flex items-end justify-center bg-gray-900/40 px-4 pb-4 backdrop-blur-sm sm:items-center sm:pb-6">
-    <div class="brand-card max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl p-6">
+    <div class="brand-card modal-scroll-shell w-full max-w-md rounded-2xl">
+      <div class="modal-scroll-body">
       <p class="section-label text-sm font-semibold text-marine">Register</p>
       <h2 class="mt-1 text-2xl font-bold text-gray-900">배터리 등록</h2>
       <p class="mt-2 text-sm text-gray-500">항목별 드롭다운에서 선택합니다. 목록에 없으면 맨 아래 "+ 직접 추가…"로 등록하면 이후 선택지에 남습니다.</p>
@@ -1738,11 +2568,13 @@
         <button id="admin-register-cancel-button" type="button" class="w-full rounded-xl border border-gray-300 px-4 py-4 text-base font-semibold text-gray-600">취소</button>
         <button id="admin-register-button" type="button" class="brand-btn-primary w-full rounded-xl px-4 py-4 text-base font-bold text-white">등록하고 QR 만들기</button>
       </div>
+      </div>
     </div>
   </div>
 
   <div id="admin-label-modal" class="fixed inset-0 z-50 hidden flex items-end justify-center bg-gray-900/40 px-4 pb-4 backdrop-blur-sm sm:items-center sm:pb-6">
-    <div class="brand-card max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl p-6">
+    <div class="brand-card modal-scroll-shell modal-scroll-shell--tall w-full max-w-md rounded-2xl">
+      <div class="modal-scroll-body">
       <p class="section-label text-sm font-semibold text-marine">Label</p>
       <h2 class="mt-1 text-2xl font-bold text-gray-900">QR 라벨 생성</h2>
       <p class="mt-2 text-sm text-gray-500">QR 코드는 항상 <strong>정사각형</strong>입니다. 아래 두 가지를 구분하세요.</p>
@@ -1770,7 +2602,9 @@
       <button id="admin-download-label-button" type="button" class="brand-btn-primary mt-5 w-full rounded-xl px-4 py-4 text-base font-bold text-white">라벨 PNG 다운로드</button>
       <button id="admin-download-qr-button" type="button" class="mt-3 w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-base font-semibold text-gray-700">QR만 PNG 다운로드</button>
       <button id="admin-new-register-button" type="button" class="mt-3 w-full rounded-xl border border-marine/30 bg-marine-light px-4 py-4 text-base font-semibold text-marine">다른 배터리 등록</button>
+      <button id="admin-reprint-from-label-button" type="button" class="mt-3 w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-base font-semibold text-gray-700">기존 배터리 QR 재출력</button>
       <button id="admin-label-close-button" type="button" class="mt-3 w-full rounded-xl px-4 py-3 text-sm text-gray-500">닫기</button>
+      </div>
     </div>
   </div>
 

@@ -133,6 +133,21 @@ function handleRegisterOptionsGet_(params) {
   return jsonResponse_({ success: true, options: getRegisterOptions_() });
 }
 
+function handleRegisterInit_(params, sheet) {
+  if (!verifyAdminPin_(params.pin)) {
+    return jsonResponse_({ success: false, error: '관리자 PIN이 올바르지 않습니다.' });
+  }
+
+  const prefix = buildBatteryIdPrefix_(params.chem, params.cells, params.capacity);
+
+  return jsonResponse_({
+    success: true,
+    options: getRegisterOptions_(),
+    prefix: prefix,
+    nextId: generateNextBatteryId_(sheet, prefix),
+  });
+}
+
 function handleAddRegisterOption_(params) {
   const type = String(params.optionType || '').trim();
   const options = addRegisterOption_(type, params.value, params.label, params.pin);
@@ -182,6 +197,36 @@ function generateNextBatteryId_(sheet, prefix) {
   }
 
   return normalizedPrefix + '-' + String(maxSeq + 1).padStart(3, '0');
+}
+
+function listBatteries_(sheet) {
+  const rows = sheet.getDataRange().getValues();
+  const batteries = [];
+
+  for (let i = 1; i < rows.length; i++) {
+    const id = normalizeBatteryId_(rows[i][0]);
+    if (!id) {
+      continue;
+    }
+    batteries.push({
+      id: id,
+      model: String(rows[i][1] || ''),
+    });
+  }
+
+  batteries.sort(function (a, b) {
+    return a.id.localeCompare(b.id);
+  });
+
+  return batteries;
+}
+
+function handleBatteryList_(params, sheet) {
+  if (!verifyAdminPin_(params.pin)) {
+    return jsonResponse_({ success: false, error: '관리자 PIN이 올바르지 않습니다.' });
+  }
+
+  return jsonResponse_({ success: true, batteries: listBatteries_(sheet) });
 }
 
 function findBattery_(sheet, batteryId) {
@@ -437,6 +482,14 @@ function doGet(e) {
 
     if (action === 'registeroptions') {
       return handleRegisterOptionsGet_(params);
+    }
+
+    if (action === 'registerinit') {
+      return handleRegisterInit_(params, sheets.batteriesSheet);
+    }
+
+    if (action === 'batterylist') {
+      return handleBatteryList_(params, sheets.batteriesSheet);
     }
 
     const batteryId = normalizeBatteryId_(params.id);
