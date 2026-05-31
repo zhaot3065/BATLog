@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>BATLog - 배터리 충전 기록 | 해양드론기술</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            marine: {
+              DEFAULT: '#00a8d4',
+              dark: '#008eb3',
+              light: '#e6f7fb',
+            },
+          },
+          fontFamily: {
+            sans: ['Pretendard', 'Inter', 'Malgun Gothic', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: 'Pretendard', 'Inter', 'Malgun Gothic', sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(0, 168, 212, 0.08), transparent 28%),
+        linear-gradient(180deg, #f8f9fb 0%, #f2f4f7 100%);
+    }
+
+    #qr-reader {
+      width: 100%;
+      max-width: 420px;
+      margin: 0 auto;
+      border-radius: 0.75rem;
+      overflow: hidden;
+      border: 1px solid #e0e0e0;
+    }
+
+    #qr-reader video {
+      border-radius: 0.75rem;
+    }
+
+    .section-label {
+      letter-spacing: 0.08em;
+    }
+
+    .brand-card {
+      background: #fff;
+      border: 1px solid #e8eaed;
+      box-shadow: 0 8px 24px rgba(34, 34, 34, 0.06);
+    }
+
+    .brand-btn-primary {
+      background: #00a8d4;
+      transition: background-color 0.2s ease, transform 0.15s ease;
+    }
+
+    .brand-btn-primary:hover {
+      background: #008eb3;
+    }
+
+    .brand-btn-primary:active {
+      transform: scale(0.98);
+    }
+
+    .toast-enter {
+      animation: toast-in 0.25s ease-out forwards;
+    }
+
+    .toast-leave {
+      animation: toast-out 0.25s ease-in forwards;
+    }
+
+    @keyframes toast-in {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes toast-out {
+      from {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+    }
+
+    .spinner {
+      border: 4px solid rgba(0, 168, 212, 0.15);
+      border-top-color: #00a8d4;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen text-gray-800">
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbyNgPdmdi1zDrzC2WMx1C0EB5ZQHLGd2O65niUWOCZEK7u6neQ5G117L3fN4cD-Nv6mIA/exec';
+
+    // 시트 D열(MaxCycles)이 비어 있을 때 사용할 기본 수명. 0이면 기본값 없음.
+    const DEFAULT_MAX_CYCLES = 300;
+    // 권장 수명의 몇 %부터 '임박' 경고를 표시할지 (0.9 = 90%)
+    const LIFECYCLE_WARNING_RATIO = 0.9;
+
+    const WORKERS = [
+      { value: '', label: '선택하세요' },
+      // 드론기술사업센터
+      { value: '홍운희', label: '홍운희' },
+      // 기술관리실
+      { value: '오창룡', label: '오창룡' },
+      { value: '변현정', label: '변현정' },
+      // 해양드론연구소 / 기체개발파트
+      { value: '곽광훈', label: '곽광훈' },
+      { value: '이대현', label: '이대현' },
+      { value: '박의정', label: '박의정' },
+      { value: '최혜성', label: '최혜성' },
+      // 드론AI파트
+      { value: 'Nguyen Phuc', label: 'Nguyen Phuc' },
+      { value: '박영종', label: '박영종' },
+      { value: '권용길', label: '권용길' },
+      { value: '김동욱', label: '김동욱' },
+      { value: '손진웅', label: '손진웅' },
+      // 드론에너지파트
+      { value: '김태형', label: '김태형' },
+      // 물류사업부 / 국내운항파트
+      { value: '황대웅', label: '황대웅' },
+      { value: '한석', label: '한석' },
+      { value: '김영석', label: '김영석' },
+      { value: '김희주', label: '김희주' },
+      { value: '신승민', label: '신승민' },
+      { value: '황치성', label: '황치성' },
+      { value: '기타', label: '기타' },
+    ];
+
+    let html5QrCode = null;
+    let currentBatteryId = null;
+    let currentBatteryModel = '';
+    let currentBatteryStartDate = '';
+    let currentMaxCycles = 0;
+    let currentCycleCount = 0;
+    let isSubmitting = false;
+    let activeApiUrl = null;
+
+    function isAppsScriptUrl(urlString) {
+      try {
+        const url = new URL(urlString);
+        return url.hostname === 'script.google.com' && url.pathname.indexOf('/exec') !== -1;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    function normalizeApiUrl(urlString) {
+      if (!urlString) {
+        return null;
+      }
+
+      try {
+        const url = new URL(String(urlString).trim());
+        if (!isAppsScriptUrl(url.href)) {
+          return null;
+        }
+        return url.origin + url.pathname;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function getActiveApiUrl() {
+      return activeApiUrl || API_URL;
+    }
+
+    function setActiveApiUrl(urlString) {
+      const normalized = normalizeApiUrl(urlString);
+      if (normalized) {
+        activeApiUrl = normalized;
+      }
+    }
+
+    function extractBatteryId(rawValue) {
+      if (!rawValue) {
+        return null;
+      }
+
+      const value = String(rawValue).trim();
+
+      try {
+        const url = new URL(value);
+        const idFromQuery = url.searchParams.get('id');
+        if (idFromQuery) {
+          return idFromQuery.trim().toUpperCase();
+        }
+      } catch (err) {
+        // URL이 아니면 아래 규칙으로 처리
+      }
+
+      const queryMatch = value.match(/[?&]id=([^&#]+)/i);
+      if (queryMatch) {
+        return decodeURIComponent(queryMatch[1]).trim().toUpperCase();
+      }
+
+      const idMatch = value.match(/\b(BT\d+)\b/i);
+      if (idMatch) {
+        return idMatch[1].toUpperCase();
+      }
+
+      if (/^[A-Za-z0-9_-]{2,20}$/.test(value)) {
+        return value.toUpperCase();
+      }
+
+      return null;
+    }
+
+    function parseQrPayload(rawValue) {
+      if (!rawValue) {
+        return { batteryId: null, apiUrl: null };
+      }
+
+      const value = String(rawValue).trim();
+
+      if (value.charAt(0) === '{') {
+        try {
+          const payload = JSON.parse(value);
+          return {
+            batteryId: payload.id ? String(payload.id).trim().toUpperCase() : null,
+            apiUrl: normalizeApiUrl(payload.api || payload.apiUrl || payload.url),
+          };
+        } catch (err) {
+          // JSON이 아니면 다른 형식으로 처리
+        }
+      }
+
+      if (value.toUpperCase().indexOf('BATLOG|') === 0) {
+        const parts = value.split('|');
+        if (parts.length >= 3) {
+          return {
+            apiUrl: normalizeApiUrl(parts[1]),
+            batteryId: parts[2].trim().toUpperCase(),
+          };
+        }
+      }
+
+      try {
+        const url = new URL(value);
+
+        if (isAppsScriptUrl(value)) {
+          const idFromQuery = url.searchParams.get('id');
+          return {
+            apiUrl: normalizeApiUrl(value),
+            batteryId: idFromQuery ? idFromQuery.trim().toUpperCase() : null,
+          };
+        }
+
+        const apiParam = url.searchParams.get('api');
+        const idParam = url.searchParams.get('id');
+        if (apiParam && idParam) {
+          return {
+            apiUrl: normalizeApiUrl(decodeURIComponent(apiParam)),
+            batteryId: idParam.trim().toUpperCase(),
+          };
+        }
+
+        if (idParam) {
+          return {
+            apiUrl: null,
+            batteryId: idParam.trim().toUpperCase(),
+          };
+        }
+      } catch (err) {
+        // URL이 아니면 아래 규칙으로 처리
+      }
+
+      const apiMatch = value.match(/[?&]api=([^&#]+)/i);
+      const idMatch = value.match(/[?&]id=([^&#]+)/i);
+      if (apiMatch && idMatch) {
+        return {
+          apiUrl: normalizeApiUrl(decodeURIComponent(apiMatch[1])),
+          batteryId: decodeURIComponent(idMatch[1]).trim().toUpperCase(),
+        };
+      }
+
+      return {
+        batteryId: extractBatteryId(value),
+        apiUrl: null,
+      };
+    }
+
+    function getUrlPayload() {
+      return parseQrPayload(window.location.href);
+    }
+
+    function showLoading(show) {
+      document.getElementById('loading-overlay').classList.toggle('hidden', !show);
+    }
+
+    function showToast(message, type) {
+      const toast = document.getElementById('toast');
+      const toastBox = toast.querySelector('div');
+
+      toastBox.textContent = message;
+      toastBox.className = 'rounded-xl px-5 py-4 text-base font-semibold shadow-2xl toast-enter ' +
+        (type === 'error'
+          ? 'bg-[#eb3949] text-white'
+          : 'bg-marine text-white');
+
+      toast.classList.remove('hidden');
+
+      setTimeout(function () {
+        toastBox.classList.remove('toast-enter');
+        toastBox.classList.add('toast-leave');
+        setTimeout(function () {
+          toast.classList.add('hidden');
+          toastBox.classList.remove('toast-leave');
+        }, 250);
+      }, 2800);
+    }
+
+    function showScreen(screenId) {
+      ['scan-screen', 'battery-screen', 'error-screen'].forEach(function (id) {
+        document.getElementById(id).classList.toggle('hidden', id !== screenId);
+      });
+    }
+
+    function setErrorMessage(message) {
+      document.getElementById('error-message').textContent = message;
+    }
+
+    async function fetchBatteryInfo(batteryId) {
+      const apiUrl = getActiveApiUrl();
+      if (!apiUrl || apiUrl === 'YOUR_APPS_SCRIPT_URL') {
+        throw new Error('API URL이 없습니다. index.html의 API_URL을 설정하거나, API URL이 포함된 QR을 스캔해 주세요.');
+      }
+
+      const url = apiUrl + (apiUrl.indexOf('?') >= 0 ? '&' : '?') +
+        'id=' + encodeURIComponent(batteryId);
+
+      const response = await fetch(url, { method: 'GET' });
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || '배터리 정보를 불러오지 못했습니다.');
+      }
+
+      return data;
+    }
+
+    function getEffectiveMaxCycles(apiMaxCycles) {
+      const fromApi = Number(apiMaxCycles) || 0;
+      if (fromApi > 0) {
+        return fromApi;
+      }
+      return DEFAULT_MAX_CYCLES > 0 ? DEFAULT_MAX_CYCLES : 0;
+    }
+
+    function getLifecycleStatus(cycleCount, maxCycles) {
+      if (!maxCycles || maxCycles <= 0) {
+        return 'normal';
+      }
+
+      if (cycleCount > maxCycles) {
+        return 'exceeded';
+      }
+
+      if (cycleCount >= maxCycles) {
+        return 'reached';
+      }
+
+      if (cycleCount >= Math.floor(maxCycles * LIFECYCLE_WARNING_RATIO)) {
+        return 'near';
+      }
+
+      return 'normal';
+    }
+
+    function getLifecycleMessage(status, cycleCount, maxCycles) {
+      if (status === 'exceeded') {
+        return '권장 수명(' + maxCycles + '회)을 ' + (cycleCount - maxCycles) + '회 초과했습니다. 배터리 상태를 확인하고 사용에 주의하세요.';
+      }
+      if (status === 'reached') {
+        return '권장 수명(' + maxCycles + '회)에 도달했습니다. 교체 또는 점검을 검토해 주세요.';
+      }
+      if (status === 'near') {
+        return '권장 수명(' + maxCycles + '회)의 ' + Math.round((cycleCount / maxCycles) * 100) + '%를 사용했습니다. 수명 임박 상태입니다.';
+      }
+      return '';
+    }
+
+    function updateLifecycleUI(cycleCount, maxCycles) {
+      const effectiveMax = getEffectiveMaxCycles(maxCycles);
+      const status = getLifecycleStatus(cycleCount, effectiveMax);
+      const alertBox = document.getElementById('lifecycle-alert');
+      const alertTitle = document.getElementById('lifecycle-alert-title');
+      const alertMessage = document.getElementById('lifecycle-alert-message');
+      const statusBadge = document.getElementById('battery-status-badge');
+      const cycleBox = document.getElementById('battery-cycle-box');
+      const maxCyclesEl = document.getElementById('battery-max-cycles');
+      const successAlert = document.getElementById('success-modal-lifecycle-alert');
+
+      maxCyclesEl.textContent = effectiveMax > 0 ? String(effectiveMax) + '회' : '미설정';
+
+      cycleBox.className = 'rounded-xl p-4 ring-1 ';
+      statusBadge.className = 'rounded-full px-3 py-1 text-sm font-semibold ';
+
+      if (status === 'exceeded') {
+        alertBox.className = 'mb-4 rounded-xl border border-[#eb3949]/30 bg-[#fff1f2] p-4';
+        alertTitle.className = 'flex items-center gap-2 text-base font-bold text-[#eb3949]';
+        alertTitle.textContent = '⚠ 사용 주의';
+        alertMessage.className = 'mt-2 text-sm leading-6 text-[#9f1239]';
+        alertMessage.textContent = getLifecycleMessage(status, cycleCount, effectiveMax);
+        alertBox.classList.remove('hidden');
+        cycleBox.className += 'bg-[#fff1f2] ring-[#eb3949]/30';
+        statusBadge.className += 'bg-[#ffe4e6] text-[#eb3949]';
+        statusBadge.textContent = '사용 주의';
+        if (successAlert) {
+          successAlert.className = 'mt-4 rounded-xl border border-[#eb3949]/30 bg-[#fff1f2] p-4 text-sm leading-6 text-[#9f1239]';
+          successAlert.textContent = getLifecycleMessage(status, cycleCount, effectiveMax);
+          successAlert.classList.remove('hidden');
+        }
+        return;
+      }
+
+      if (status === 'reached' || status === 'near') {
+        alertBox.className = 'mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4';
+        alertTitle.className = 'flex items-center gap-2 text-base font-bold text-amber-700';
+        alertTitle.textContent = status === 'reached' ? '⚠ 수명 도달' : '⚠ 수명 임박';
+        alertMessage.className = 'mt-2 text-sm leading-6 text-amber-800';
+        alertMessage.textContent = getLifecycleMessage(status, cycleCount, effectiveMax);
+        alertBox.classList.remove('hidden');
+        cycleBox.className += status === 'reached' ? 'bg-amber-50 ring-amber-300' : 'bg-amber-50/70 ring-amber-200';
+        statusBadge.className += 'bg-amber-100 text-amber-700';
+        statusBadge.textContent = status === 'reached' ? '수명 도달' : '수명 임박';
+        if (successAlert) {
+          successAlert.className = 'mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-800';
+          successAlert.textContent = getLifecycleMessage(status, cycleCount, effectiveMax);
+          successAlert.classList.remove('hidden');
+        }
+        return;
+      }
+
+      alertBox.classList.add('hidden');
+      cycleBox.className += 'bg-marine-light ring-marine/20';
+      statusBadge.className += 'bg-marine-light text-marine';
+      statusBadge.textContent = '정상';
+      if (successAlert) {
+        successAlert.classList.add('hidden');
+        successAlert.textContent = '';
+      }
+    }
+
+    function showSuccessModal(summary) {
+      document.getElementById('success-modal-id').textContent = summary.id;
+      document.getElementById('success-modal-model').textContent = summary.model || '-';
+      document.getElementById('success-modal-start-date').textContent = summary.startDate || '-';
+      document.getElementById('success-modal-worker').textContent = summary.worker || '-';
+      document.getElementById('success-modal-cycle-count').textContent = String(summary.cycleCount);
+      updateLifecycleUI(summary.cycleCount, summary.maxCycles);
+      document.getElementById('success-modal').classList.remove('hidden');
+    }
+
+    function hideSuccessModal() {
+      document.getElementById('success-modal').classList.add('hidden');
+    }
+
+    async function returnToScanScreen() {
+      hideSuccessModal();
+      await stopQrScanner();
+      currentBatteryId = null;
+      currentBatteryModel = '';
+      currentBatteryStartDate = '';
+      currentMaxCycles = 0;
+      currentCycleCount = 0;
+      document.getElementById('scan-panel').classList.add('hidden');
+      document.getElementById('start-scan-button').classList.remove('hidden');
+      document.getElementById('worker-select').selectedIndex = 0;
+      resetSubmitButton();
+
+      if (window.history.replaceState) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+
+      showScreen('scan-screen');
+    }
+
+    function renderBatteryCard(data) {
+      currentBatteryId = data.id;
+      currentBatteryModel = data.model || '-';
+      currentBatteryStartDate = data.startDate || '-';
+      currentMaxCycles = getEffectiveMaxCycles(data.maxCycles);
+      currentCycleCount = Number(data.cycleCount) || 0;
+
+      document.getElementById('battery-id').textContent = data.id;
+      document.getElementById('battery-model').textContent = data.model || '-';
+      document.getElementById('battery-start-date').textContent = data.startDate || '-';
+      document.getElementById('battery-cycle-count').textContent = String(currentCycleCount);
+      updateLifecycleUI(currentCycleCount, data.maxCycles);
+
+      const workerSelect = document.getElementById('worker-select');
+      workerSelect.innerHTML = WORKERS.map(function (worker) {
+        return '<option value="' + worker.value + '">' + worker.label + '</option>';
+      }).join('');
+
+      resetSubmitButton();
+      showScreen('battery-screen');
+    }
+
+    async function loadBattery(batteryId, apiUrl) {
+      if (apiUrl) {
+        setActiveApiUrl(apiUrl);
+      }
+
+      showLoading(true);
+
+      try {
+        const data = await fetchBatteryInfo(batteryId);
+        renderBatteryCard(data);
+      } catch (err) {
+        setErrorMessage(err.message || '알 수 없는 오류가 발생했습니다.');
+        showScreen('error-screen');
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function resetSubmitButton() {
+      isSubmitting = false;
+      const button = document.getElementById('submit-button');
+      button.disabled = false;
+      button.textContent = '충전 기록하기 (+1 사이클)';
+      button.classList.remove('opacity-60', 'cursor-not-allowed');
+    }
+
+    function disableSubmitButton() {
+      isSubmitting = true;
+      const button = document.getElementById('submit-button');
+      button.disabled = true;
+      button.textContent = '기록 중...';
+      button.classList.add('opacity-60', 'cursor-not-allowed');
+    }
+
+    async function submitChargingLog() {
+      if (isSubmitting) {
+        return;
+      }
+
+      const worker = document.getElementById('worker-select').value.trim();
+      if (!worker) {
+        alert('작업자를 선택해 주세요');
+        return;
+      }
+
+      disableSubmitButton();
+      showLoading(true);
+
+      try {
+        const formData = new URLSearchParams();
+        formData.append('id', currentBatteryId);
+        formData.append('worker', worker);
+
+        const response = await fetch(getActiveApiUrl(), {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || '충전 기록에 실패했습니다.');
+        }
+
+        currentCycleCount = Number(data.cycleCount) || (currentCycleCount + 1);
+        document.getElementById('battery-cycle-count').textContent = String(currentCycleCount);
+        showSuccessModal({
+          id: currentBatteryId,
+          model: currentBatteryModel,
+          startDate: currentBatteryStartDate,
+          worker: worker,
+          cycleCount: currentCycleCount,
+          maxCycles: currentMaxCycles,
+        });
+      } catch (err) {
+        showToast(err.message || '충전 기록에 실패했습니다.', 'error');
+        resetSubmitButton();
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    async function startQrScanner() {
+      document.getElementById('scan-panel').classList.remove('hidden');
+      document.getElementById('start-scan-button').classList.add('hidden');
+
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode('qr-reader');
+      }
+
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1,
+      };
+
+      try {
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          config,
+          async function (decodedText) {
+            const payload = parseQrPayload(decodedText);
+            if (!payload.batteryId) {
+              showToast('QR에서 배터리 ID를 찾을 수 없습니다.', 'error');
+              return;
+            }
+
+            if (payload.apiUrl) {
+              setActiveApiUrl(payload.apiUrl);
+            } else if (!getActiveApiUrl() || getActiveApiUrl() === 'YOUR_APPS_SCRIPT_URL') {
+              showToast('QR에 API URL이 없습니다. index.html의 API_URL을 설정해 주세요.', 'error');
+              return;
+            }
+
+            await stopQrScanner();
+            await loadBattery(payload.batteryId, payload.apiUrl);
+          },
+          function () {
+            // 스캔 중 프레임별 실패는 무시
+          }
+        );
+      } catch (err) {
+        showToast('카메라를 시작할 수 없습니다. 권한을 확인해 주세요.', 'error');
+        document.getElementById('scan-panel').classList.add('hidden');
+        document.getElementById('start-scan-button').classList.remove('hidden');
+      }
+    }
+
+    async function stopQrScanner() {
+      if (html5QrCode && html5QrCode.isScanning) {
+        await html5QrCode.stop();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async function () {
+      document.getElementById('start-scan-button').addEventListener('click', startQrScanner);
+      document.getElementById('submit-button').addEventListener('click', submitChargingLog);
+      document.getElementById('rescan-button').addEventListener('click', returnToScanScreen);
+      document.getElementById('success-modal-close').addEventListener('click', returnToScanScreen);
+      document.getElementById('retry-button').addEventListener('click', function () {
+        const payload = getUrlPayload();
+        if (payload.batteryId) {
+          loadBattery(payload.batteryId, payload.apiUrl);
+        } else {
+          showScreen('scan-screen');
+        }
+      });
+
+      const payloadFromUrl = getUrlPayload();
+      if (payloadFromUrl.apiUrl) {
+        setActiveApiUrl(payloadFromUrl.apiUrl);
+      }
+      if (payloadFromUrl.batteryId) {
+        await loadBattery(payloadFromUrl.batteryId, payloadFromUrl.apiUrl);
+      } else {
+        showScreen('scan-screen');
+      }
+    });
+  </script>
+
+  <header class="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur-md">
+    <div class="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
+      <a href="https://marine-drone.co.kr/" target="_blank" rel="noopener noreferrer" class="flex items-center">
+        <img
+          src="https://marine-drone.co.kr/data/skin/respon_default/images/skin/logo.png"
+          alt="주식회사 해양드론기술"
+          class="h-9 w-auto"
+        >
+      </a>
+      <div class="text-right">
+        <p class="section-label text-xs font-bold uppercase text-marine">BATLog</p>
+        <p class="text-[11px] text-gray-500">배터리 충전 기록</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="mx-auto flex min-h-[calc(100vh-57px)] max-w-lg flex-col px-4 py-6">
+    <section class="mb-6 text-center">
+      <p class="section-label text-sm font-semibold text-marine">Battery Management</p>
+      <h1 class="mt-2 text-3xl font-bold tracking-tight text-gray-900">배터리 충전 기록</h1>
+      <p class="mt-3 text-sm leading-6 text-gray-500">
+        QR 스캔 또는 링크로 배터리를 선택한 뒤 충전 사이클을 기록합니다.
+      </p>
+    </section>
+
+    <main class="flex-1">
+      <section id="scan-screen" class="hidden space-y-5">
+        <div class="brand-card rounded-2xl p-6 text-center">
+          <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-marine-light text-marine">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+          <p class="section-label text-sm font-semibold text-marine">Scan</p>
+          <h2 class="mt-1 text-2xl font-bold text-gray-900">QR 스캔</h2>
+          <p class="mt-2 text-base text-gray-500">배터리 QR 코드를 스캔하면 자동으로 정보를 불러옵니다.</p>
+          <button
+            id="start-scan-button"
+            class="brand-btn-primary mt-6 w-full rounded-xl px-6 py-5 text-lg font-bold text-white"
+          >
+            QR 스캔 시작
+          </button>
+        </div>
+
+        <div id="scan-panel" class="brand-card hidden rounded-2xl p-4">
+          <div id="qr-reader"></div>
+          <p class="mt-4 text-center text-sm text-gray-500">QR 코드를 화면 중앙에 맞춰 주세요.</p>
+        </div>
+      </section>
+
+      <section id="battery-screen" class="hidden space-y-5">
+        <div class="brand-card rounded-2xl p-6">
+          <div class="mb-5 flex items-center justify-between">
+            <div>
+              <p class="section-label text-sm font-semibold text-marine">Battery Info</p>
+              <h2 class="mt-1 text-2xl font-bold text-gray-900">배터리 정보</h2>
+            </div>
+            <span id="battery-status-badge" class="rounded-full bg-marine-light px-3 py-1 text-sm font-semibold text-marine">정상</span>
+          </div>
+
+          <div id="lifecycle-alert" class="mb-4 hidden rounded-xl border p-4">
+            <p id="lifecycle-alert-title" class="text-base font-bold"></p>
+            <p id="lifecycle-alert-message" class="mt-2 text-sm leading-6"></p>
+          </div>
+
+          <dl class="grid grid-cols-1 gap-3">
+            <div class="rounded-xl bg-gray-50 p-4">
+              <dt class="text-sm text-gray-500">배터리 ID</dt>
+              <dd id="battery-id" class="mt-1 text-2xl font-bold tracking-wide text-gray-900">-</dd>
+            </div>
+            <div class="rounded-xl bg-gray-50 p-4">
+              <dt class="text-sm text-gray-500">모델명</dt>
+              <dd id="battery-model" class="mt-1 text-xl font-semibold text-gray-900">-</dd>
+            </div>
+            <div class="rounded-xl bg-gray-50 p-4">
+              <dt class="text-sm text-gray-500">사용 시작일</dt>
+              <dd id="battery-start-date" class="mt-1 text-xl font-semibold text-gray-900">-</dd>
+            </div>
+            <div id="battery-cycle-box" class="rounded-xl bg-marine-light p-4 ring-1 ring-marine/20">
+              <dt class="text-sm font-semibold text-marine">현재 충전 사이클 수</dt>
+              <dd id="battery-cycle-count" class="mt-1 text-4xl font-black text-marine">0</dd>
+            </div>
+            <div class="rounded-xl bg-gray-50 p-4">
+              <dt class="text-sm text-gray-500">권장 수명 (최대 사이클)</dt>
+              <dd id="battery-max-cycles" class="mt-1 text-xl font-semibold text-gray-900">-</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="brand-card rounded-2xl p-6">
+          <p class="section-label text-sm font-semibold text-marine">Worker</p>
+          <label for="worker-select" class="mt-1 block text-xl font-bold text-gray-900">작업자 선택</label>
+          <select
+            id="worker-select"
+            class="mt-4 w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-lg text-gray-900 outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"
+          ></select>
+
+          <button
+            id="submit-button"
+            class="brand-btn-primary mt-5 w-full rounded-xl px-6 py-5 text-xl font-bold text-white"
+          >
+            충전 기록하기 (+1 사이클)
+          </button>
+
+          <button
+            id="rescan-button"
+            class="mt-3 w-full rounded-xl border border-gray-300 bg-white px-6 py-4 text-base font-semibold text-gray-600 transition hover:bg-gray-50"
+          >
+            다른 배터리 스캔
+          </button>
+        </div>
+      </section>
+
+      <section id="error-screen" class="hidden">
+        <div class="brand-card rounded-2xl border-[#eb3949]/20 p-6 text-center">
+          <p class="section-label text-sm font-semibold text-[#eb3949]">Error</p>
+          <h2 class="mt-1 text-2xl font-bold text-gray-900">조회 실패</h2>
+          <p id="error-message" class="mt-3 text-base text-gray-600"></p>
+          <button
+            id="retry-button"
+            class="mt-6 w-full rounded-xl bg-[#eb3949] px-6 py-4 text-lg font-bold text-white transition hover:opacity-90"
+          >
+            다시 시도
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="mt-8 border-t border-gray-200 pt-5 text-center text-xs leading-5 text-gray-500">
+      <p class="font-semibold text-gray-700">주식회사 해양드론기술</p>
+      <p class="mt-1">BATLog · 배터리 충전 이력 관리</p>
+      <a href="https://marine-drone.co.kr/" target="_blank" rel="noopener noreferrer" class="mt-2 inline-block text-marine underline-offset-2 hover:underline">
+        marine-drone.co.kr
+      </a>
+    </footer>
+  </div>
+
+  <div id="loading-overlay" class="fixed inset-0 z-40 hidden flex items-center justify-center bg-white/70 backdrop-blur-sm">
+    <div class="brand-card flex flex-col items-center gap-4 rounded-2xl px-8 py-7">
+      <div class="spinner"></div>
+      <p class="text-base font-medium text-gray-700">처리 중...</p>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-6 left-0 right-0 z-50 hidden px-4">
+    <div class="mx-auto max-w-lg rounded-2xl px-5 py-4 text-base font-semibold shadow-2xl"></div>
+  </div>
+
+  <div id="success-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-gray-900/40 px-4 backdrop-blur-sm">
+    <div class="brand-card w-full max-w-md rounded-2xl p-6">
+      <div class="text-center">
+        <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-marine-light text-3xl text-marine">
+          ✓
+        </div>
+        <p class="section-label text-sm font-semibold text-marine">Complete</p>
+        <h2 class="mt-1 text-2xl font-bold text-gray-900">기록 완료</h2>
+        <p class="mt-2 text-base text-gray-600">충전 기록이 정상적으로 저장되었습니다.</p>
+      </div>
+
+      <dl class="mt-6 space-y-3">
+        <div class="rounded-xl bg-gray-50 px-4 py-3">
+          <dt class="text-sm text-gray-500">배터리 ID</dt>
+          <dd id="success-modal-id" class="mt-1 text-xl font-bold text-gray-900">-</dd>
+        </div>
+        <div class="rounded-xl bg-gray-50 px-4 py-3">
+          <dt class="text-sm text-gray-500">모델명</dt>
+          <dd id="success-modal-model" class="mt-1 text-lg font-semibold text-gray-900">-</dd>
+        </div>
+        <div class="rounded-xl bg-gray-50 px-4 py-3">
+          <dt class="text-sm text-gray-500">사용 시작일</dt>
+          <dd id="success-modal-start-date" class="mt-1 text-lg font-semibold text-gray-900">-</dd>
+        </div>
+        <div class="rounded-xl bg-gray-50 px-4 py-3">
+          <dt class="text-sm text-gray-500">기록 작업자</dt>
+          <dd id="success-modal-worker" class="mt-1 text-lg font-semibold text-gray-900">-</dd>
+        </div>
+        <div class="rounded-xl bg-marine-light px-4 py-3 ring-1 ring-marine/20">
+          <dt class="text-sm font-semibold text-marine">최종 충전 사이클 수</dt>
+          <dd id="success-modal-cycle-count" class="mt-1 text-4xl font-black text-marine">0</dd>
+        </div>
+      </dl>
+
+      <div id="success-modal-lifecycle-alert" class="mt-4 hidden rounded-xl p-4 text-sm leading-6"></div>
+
+      <button
+        id="success-modal-close"
+        class="brand-btn-primary mt-6 w-full rounded-xl px-6 py-5 text-lg font-bold text-white"
+      >
+        다음 배터리 스캔
+      </button>
+    </div>
+  </div>
+</body>
+</html>
