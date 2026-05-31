@@ -168,9 +168,9 @@ git push
 
 | 형식 | 예시 | 비고 |
 |------|------|------|
+| **웹앱 링크 (권장·QR 라벨)** | `https://zhaot3065.github.io/BATLog/?id=LPO-6S-22-001` | 카메라·앱 스캔 모두 가능 |
 | ID만 | `LPO-6S-22-001` | `API_URL` 설정 필요 |
-| 웹앱 링크 | `https://zhaot3065.github.io/BATLog/?id=LPO-6S-22-001` | URL 접속 시 자동 조회 |
-| API + ID (권장) | `BATLOG\|https://script.google.com/.../exec\|LPO-6S-22-001` | 앱 QR 스캔용 |
+| 레거시 BATLOG | `BATLOG\|https://script.google.com/.../exec\|LPO-6S-22-001` | 예전 라벨 호환 |
 | Apps Script URL | `https://script.google.com/.../exec?id=BT001` | 앱 QR 스캔용 (기본 카메라는 JSON만 표시) |
 
 ---

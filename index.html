@@ -375,7 +375,8 @@
     }
 
     function buildQrPayloadText(batteryId) {
-      return 'BATLOG|' + getActiveApiUrl() + '|' + batteryId;
+      const base = APP_BASE_URL.replace(/\/$/, '');
+      return base + '/?id=' + encodeURIComponent(batteryId);
     }
 
     function getChemLabel(chem) {
