@@ -680,7 +680,13 @@ function sendAppearanceReportEmail_(report) {
     '보고 시각: ' + report.timestamp,
     '',
     '해당 배터리는 사용·충전하지 마세요.',
-    '점검 완료 후 AppearanceReports 시트의 Status 열을 resolved 로 변경하면 다시 사용할 수 있습니다.',
+    '',
+    '[조치 방법 — BATLog 앱]',
+    '관리자 로그인 → 관리자 설정 → 「이상 보고 배터리」',
+    '· 조치완료: 점검 후 다시 충전·사용 가능',
+    '· 폐기: 폐기처리된 배터리로 영구 사용 불가',
+    '',
+    '(시트에서 직접 처리: AppearanceReports의 Status를 resolved 또는 disposed 로 변경)',
   ].join('\n');
 
   try {
