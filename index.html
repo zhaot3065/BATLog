@@ -322,6 +322,10 @@
     ];
 
     let html5QrCode = null;
+    let scanWanted = false;
+    let resumeScanTimer = null;
+    let scanNeedsResume = false;
+    let scanStarting = false;
     let currentBatteryId = null;
     let currentBatteryModel = '';
     let currentBatteryStartDate = '';
@@ -2133,16 +2137,8 @@
       }
     }
 
-    async function startQrScanner() {
-      setScanUiActive(true);
-      document.getElementById('start-scan-button').classList.add('hidden');
-      document.getElementById('gate-scan-button').classList.add('hidden');
-
-      if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode('qr-reader');
-      }
-
-      const config = {
+    function getQrScannerConfig() {
+      return {
         fps: 10,
         qrbox: function (viewfinderWidth, viewfinderHeight) {
           const size = Math.min(viewfinderWidth, viewfinderHeight, 280) * 0.82;
@@ -2150,44 +2146,170 @@
         },
         aspectRatio: 1,
       };
+    }
 
-      try {
-        await html5QrCode.start(
-          { facingMode: 'environment' },
-          config,
-          async function (decodedText) {
-            const payload = parseQrPayload(decodedText);
-            if (!payload.batteryId) {
-              showToast('QR에서 배터리 ID를 찾을 수 없습니다.', 'error');
-              return;
-            }
+    async function handleQrScanSuccess(decodedText) {
+      const payload = parseQrPayload(decodedText);
+      if (!payload.batteryId) {
+        showToast('QR에서 배터리 ID를 찾을 수 없습니다.', 'error');
+        return;
+      }
 
-            if (payload.apiUrl) {
-              setActiveApiUrl(payload.apiUrl);
-            } else if (!getActiveApiUrl() || getActiveApiUrl() === 'YOUR_APPS_SCRIPT_URL') {
-              showToast('QR에 API URL이 없습니다. index.html의 API_URL을 설정해 주세요.', 'error');
-              return;
-            }
+      if (payload.apiUrl) {
+        setActiveApiUrl(payload.apiUrl);
+      } else if (!getActiveApiUrl() || getActiveApiUrl() === 'YOUR_APPS_SCRIPT_URL') {
+        showToast('QR에 API URL이 없습니다. index.html의 API_URL을 설정해 주세요.', 'error');
+        return;
+      }
 
-            grantQrAccess();
-            await stopQrScanner();
-            await loadBattery(payload.batteryId, payload.apiUrl);
-          },
-          function () {
-            // 스캔 중 프레임별 실패는 무시
+      grantQrAccess();
+      await stopQrScanner();
+      await loadBattery(payload.batteryId, payload.apiUrl);
+    }
+
+    async function clearQrReader() {
+      if (html5QrCode) {
+        try {
+          if (html5QrCode.isScanning) {
+            await html5QrCode.stop();
           }
-        );
-      } catch (err) {
-        showToast('카메라를 시작할 수 없습니다. 권한을 확인해 주세요.', 'error');
+          await html5QrCode.clear();
+        } catch (err) {
+          // 이미 정리된 경우 무시
+        }
+      }
+      html5QrCode = null;
+      const reader = document.getElementById('qr-reader');
+      if (reader) {
+        reader.innerHTML = '';
+      }
+    }
+
+    async function stopQrScanner(options) {
+      options = options || {};
+      if (!options.keepSession) {
+        scanWanted = false;
+        scanNeedsResume = false;
+      }
+
+      await clearQrReader();
+
+      if (!options.keepUi) {
         setScanUiActive(false);
       }
     }
 
-    async function stopQrScanner() {
-      if (html5QrCode && html5QrCode.isScanning) {
-        await html5QrCode.stop();
+    function restoreScanIntroButtons() {
+      const onGate = !document.getElementById('gate-screen').classList.contains('hidden');
+      document.getElementById('gate-scan-button').classList.toggle('hidden', !onGate);
+      document.getElementById('start-scan-button').classList.toggle('hidden', onGate);
+    }
+
+    async function cancelQrScanner() {
+      await stopQrScanner();
+      restoreScanIntroButtons();
+    }
+
+    async function startQrScannerInternal() {
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode('qr-reader');
       }
-      setScanUiActive(false);
+
+      if (html5QrCode.isScanning && isQrScannerAlive()) {
+        return;
+      }
+
+      scanStarting = true;
+      try {
+        if (html5QrCode.isScanning) {
+          await clearQrReader();
+          html5QrCode = new Html5Qrcode('qr-reader');
+        }
+
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          getQrScannerConfig(),
+          handleQrScanSuccess,
+          function () {
+            // 스캔 중 프레임별 실패는 무시
+          }
+        );
+      } finally {
+        scanStarting = false;
+      }
+    }
+
+    function isQrScannerAlive() {
+      if (!html5QrCode || !html5QrCode.isScanning) {
+        return false;
+      }
+
+      const video = document.querySelector('#qr-reader video');
+      if (!video || !video.srcObject) {
+        return false;
+      }
+
+      const tracks = video.srcObject.getVideoTracks();
+      if (!tracks.length || tracks[0].readyState !== 'live') {
+        return false;
+      }
+
+      return video.videoWidth > 0;
+    }
+
+    async function restartQrScannerIfNeeded(forceRestart) {
+      if (!scanWanted) {
+        return;
+      }
+
+      if (document.getElementById('scan-panel').classList.contains('hidden')) {
+        return;
+      }
+
+      if (!forceRestart && isQrScannerAlive()) {
+        return;
+      }
+
+      try {
+        await clearQrReader();
+        await startQrScannerInternal();
+      } catch (err) {
+        showToast('카메라를 다시 시작할 수 없습니다.', 'error');
+        scanWanted = false;
+        scanNeedsResume = false;
+        setScanUiActive(false);
+        restoreScanIntroButtons();
+      }
+    }
+
+    function scheduleResumeQrScanner(forceRestart) {
+      clearTimeout(resumeScanTimer);
+      resumeScanTimer = setTimeout(function () {
+        restartQrScannerIfNeeded(!!forceRestart);
+      }, 300);
+    }
+
+    async function startQrScanner() {
+      if (scanWanted && isQrScannerAlive()) {
+        setScanUiActive(true);
+        document.getElementById('start-scan-button').classList.add('hidden');
+        document.getElementById('gate-scan-button').classList.add('hidden');
+        return;
+      }
+
+      scanWanted = true;
+      setScanUiActive(true);
+      document.getElementById('start-scan-button').classList.add('hidden');
+      document.getElementById('gate-scan-button').classList.add('hidden');
+
+      try {
+        await startQrScannerInternal();
+      } catch (err) {
+        showToast('카메라를 시작할 수 없습니다. 권한을 확인해 주세요.', 'error');
+        scanWanted = false;
+        setScanUiActive(false);
+        restoreScanIntroButtons();
+      }
     }
 
     document.addEventListener('DOMContentLoaded', async function () {
@@ -2295,6 +2417,7 @@
       document.getElementById('admin-download-qr-button').addEventListener('click', downloadQrPng);
       document.getElementById('gate-scan-button').addEventListener('click', startQrScanner);
       document.getElementById('start-scan-button').addEventListener('click', startQrScanner);
+      document.getElementById('scan-close-button').addEventListener('click', cancelQrScanner);
       document.getElementById('submit-button').addEventListener('click', submitChargingLog);
       document.getElementById('rescan-button').addEventListener('click', returnToScanScreen);
       document.getElementById('success-modal-close').addEventListener('click', returnToScanScreen);
@@ -2330,6 +2453,27 @@
       } else {
         showGateScreen();
       }
+
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') {
+          if (scanWanted && !scanStarting) {
+            scanNeedsResume = true;
+          }
+          return;
+        }
+
+        if (document.visibilityState === 'visible' && scanNeedsResume) {
+          scanNeedsResume = false;
+          scheduleResumeQrScanner(true);
+        }
+      });
+
+      window.addEventListener('pageshow', function (event) {
+        if (event.persisted && scanWanted) {
+          scanNeedsResume = false;
+          scheduleResumeQrScanner(true);
+        }
+      });
     });
   </script>
 
@@ -2400,7 +2544,16 @@
 
     <main class="flex-1">
       <div id="scan-panel" class="brand-card mb-5 hidden rounded-2xl p-4">
-        <p class="mb-3 text-center text-sm font-semibold text-marine">QR 스캔</p>
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <p class="text-sm font-semibold text-marine">QR 스캔</p>
+          <button
+            id="scan-close-button"
+            type="button"
+            class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-600"
+          >
+            닫기
+          </button>
+        </div>
         <div id="qr-reader"></div>
         <p class="mt-3 text-center text-sm text-gray-500">QR 코드를 화면 중앙에 맞춰 주세요.</p>
       </div>
