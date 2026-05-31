@@ -3,7 +3,7 @@
  *
  * Batteries: A=BatteryID, B=Model, C=StartDate, D=MaxCycles
  * ChargingLogs: A=Timestamp, B=BatteryID, C=Worker
- * AppearanceReports: A=Timestamp, B=BatteryID, C=Worker, D=Issues, E=Note
+ * AppearanceReports: A=Timestamp, B=BatteryID, C=Worker, D=Issues, E=Note, F=Status
  *
  * Battery ID 형식: {CHEM}-{N}S-{CAP}-{SEQ}
  * 예) LPO-6S-22-001  (LiPo, 6S, 22000mAh, 1번)
@@ -11,6 +11,8 @@
 const DEFAULT_ADMIN_PIN = '8842';
 const PIN_PROPERTY_KEY = 'ADMIN_PIN';
 const REGISTER_OPTIONS_KEY = 'REGISTER_OPTIONS';
+const ADMIN_EMAIL_PROPERTY_KEY = 'ADMIN_EMAIL';
+const APPEARANCE_REPORT_HEADERS = ['Timestamp', 'BatteryID', 'Worker', 'Issues', 'Note', 'Status'];
 
 function jsonResponse_(payload) {
   return ContentService
@@ -277,16 +279,114 @@ function getSpreadsheet_() {
   return { batteriesSheet, logsSheet };
 }
 
-function getAppearanceReportsSheet_() {
+function getAdminEmail_() {
+  const stored = PropertiesService.getScriptProperties().getProperty(ADMIN_EMAIL_PROPERTY_KEY);
+  if (stored) {
+    return String(stored).trim();
+  }
+
+  try {
+    return Session.getEffectiveUser().getEmail() || '';
+  } catch (err) {
+    return '';
+  }
+}
+
+function formatReportTimestamp_(value) {
+  if (value instanceof Date) {
+    return formatTimestamp_(value);
+  }
+
+  return String(value || '');
+}
+
+function isResolvedAppearanceStatus_(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  return normalized === 'resolved' || normalized === '해결' || normalized === '완료';
+}
+
+function ensureAppearanceReportsSheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName('AppearanceReports');
 
   if (!sheet) {
     sheet = ss.insertSheet('AppearanceReports');
-    sheet.appendRow(['Timestamp', 'BatteryID', 'Worker', 'Issues', 'Note']);
+    sheet.appendRow(APPEARANCE_REPORT_HEADERS);
+    return sheet;
+  }
+
+  const headerRow = sheet.getRange(1, 1, 1, APPEARANCE_REPORT_HEADERS.length).getValues()[0];
+  const hasStatus = String(headerRow[5] || '').trim().toLowerCase() === 'status';
+
+  if (!hasStatus) {
+    sheet.getRange(1, 6).setValue('Status');
   }
 
   return sheet;
+}
+
+function findOpenAppearanceReport_(sheet, batteryId) {
+  if (!sheet || sheet.getLastRow() < 2) {
+    return null;
+  }
+
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0].map(function (header) {
+    return String(header || '').trim().toLowerCase();
+  });
+  const statusCol = headers.indexOf('status');
+
+  for (let i = data.length - 1; i >= 1; i--) {
+    const row = data[i];
+    const rowBatteryId = normalizeBatteryId_(row[1]);
+
+    if (rowBatteryId !== batteryId) {
+      continue;
+    }
+
+    const status = statusCol >= 0 ? row[statusCol] : '';
+    if (isResolvedAppearanceStatus_(status)) {
+      continue;
+    }
+
+    return {
+      timestamp: formatReportTimestamp_(row[0]),
+      batteryId: rowBatteryId,
+      worker: String(row[2] || ''),
+      issues: String(row[3] || ''),
+      note: String(row[4] || ''),
+    };
+  }
+
+  return null;
+}
+
+function sendAppearanceReportEmail_(report) {
+  const adminEmail = getAdminEmail_();
+  if (!adminEmail) {
+    return;
+  }
+
+  const subject = '[BATLog] 외관 이상 보고 — ' + report.batteryId;
+  const body = [
+    'BATLog 외관 이상 보고가 접수되었습니다.',
+    '',
+    '배터리 ID: ' + report.batteryId,
+    '모델: ' + (report.model || '-'),
+    '작업자: ' + report.worker,
+    '이상 항목: ' + report.issues,
+    '특이사항: ' + (report.note || '-'),
+    '보고 시각: ' + report.timestamp,
+    '',
+    '해당 배터리는 사용·충전하지 마세요.',
+    '점검 완료 후 AppearanceReports 시트의 Status 열을 resolved 로 변경하면 다시 사용할 수 있습니다.',
+  ].join('\n');
+
+  MailApp.sendEmail(adminEmail, subject, body);
+}
+
+function getAppearanceReportsSheet_() {
+  return ensureAppearanceReportsSheet_();
 }
 
 function parseRequestParams_(e) {
@@ -487,13 +587,24 @@ function handleAppearanceReport_(params) {
   }
 
   const now = new Date();
+  const timestamp = formatTimestamp_(now);
   getAppearanceReportsSheet_().appendRow([
-    formatTimestamp_(now),
+    timestamp,
     batteryId,
     worker,
     issuesText,
     note,
+    'open',
   ]);
+
+  sendAppearanceReportEmail_({
+    batteryId: batteryId,
+    model: battery.model,
+    worker: worker,
+    issues: issuesText,
+    note: note,
+    timestamp: timestamp,
+  });
 
   return jsonResponse_({
     success: true,
@@ -502,7 +613,7 @@ function handleAppearanceReport_(params) {
     worker: worker,
     issues: issuesText,
     note: note,
-    timestamp: formatTimestamp_(now),
+    timestamp: timestamp,
     model: battery.model,
     startDate: battery.startDate,
     maxCycles: battery.maxCycles,
@@ -527,6 +638,14 @@ function handleChargingLog_(params) {
 
   if (!battery) {
     return jsonResponse_({ success: false, error: '등록되지 않은 배터리 ID입니다.' });
+  }
+
+  const openAppearanceReport = findOpenAppearanceReport_(getAppearanceReportsSheet_(), batteryId);
+  if (openAppearanceReport) {
+    return jsonResponse_({
+      success: false,
+      error: '외관 이상이 보고된 배터리입니다. 사용·충전할 수 없습니다.',
+    });
   }
 
   const now = new Date();
@@ -587,6 +706,7 @@ function doGet(e) {
     }
 
     const cycleCount = countCycles_(sheets.logsSheet, batteryId);
+    const openAppearanceReport = findOpenAppearanceReport_(getAppearanceReportsSheet_(), batteryId);
 
     return jsonResponse_({
       success: true,
@@ -595,6 +715,15 @@ function doGet(e) {
       startDate: battery.startDate,
       maxCycles: battery.maxCycles,
       cycleCount: cycleCount,
+      appearanceReport: openAppearanceReport
+        ? {
+          active: true,
+          timestamp: openAppearanceReport.timestamp,
+          worker: openAppearanceReport.worker,
+          issues: openAppearanceReport.issues,
+          note: openAppearanceReport.note,
+        }
+        : { active: false },
     });
   } catch (err) {
     return jsonResponse_({ success: false, error: err.message || String(err) });
