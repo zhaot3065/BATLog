@@ -925,7 +925,7 @@ function sendAppearanceReportEmail_(report) {
     '· 조치완료: 점검 후 다시 충전·사용 가능',
     '· 폐기: 폐기처리된 배터리로 영구 사용 불가',
     '',
-    '(시트에서 직접 처리: AppearanceReports의 Status를 resolved 또는 disposed 로 변경)',
+    '참고: AppearanceReports 시트 Status → resolved / disposed',
   ].join('\n');
 
   try {
