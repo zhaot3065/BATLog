@@ -1,13 +1,14 @@
 /**
  * BATLog - 리튬 배터리 충전 이력 추적 API
  *
- * 스프레드시트 시트 구성:
- * - Batteries: A=BatteryID, B=Model, C=StartDate, D=MaxCycles
- * - ChargingLogs: A=Timestamp, B=BatteryID, C=Worker
+ * Batteries: A=BatteryID, B=Model, C=StartDate, D=MaxCycles
+ * ChargingLogs: A=Timestamp, B=BatteryID, C=Worker
  *
- * 관리자 PIN 변경 시 index.html의 ADMIN_PIN도 함께 수정하세요.
+ * Battery ID 형식: {CHEM}-{N}S-{CAP}-{SEQ}
+ * 예) LPO-6S-22-001  (LiPo, 6S, 22000mAh, 1번)
  */
-const ADMIN_PIN = '8842';
+const DEFAULT_ADMIN_PIN = '8842';
+const PIN_PROPERTY_KEY = 'ADMIN_PIN';
 
 function jsonResponse_(payload) {
   return ContentService
@@ -37,12 +38,58 @@ function parseMaxCycles_(value) {
   return Math.floor(num);
 }
 
+function getAdminPin_() {
+  const stored = PropertiesService.getScriptProperties().getProperty(PIN_PROPERTY_KEY);
+  return stored || DEFAULT_ADMIN_PIN;
+}
+
 function verifyAdminPin_(pin) {
-  return String(pin || '') === ADMIN_PIN;
+  return String(pin || '') === getAdminPin_();
 }
 
 function normalizeBatteryId_(value) {
   return String(value || '').trim().toUpperCase();
+}
+
+function isValidBatteryId_(batteryId) {
+  return /^[A-Z]{2,3}-\d+S-\d+-\d{3,}$/.test(batteryId) || /^BT\d{3,}$/.test(batteryId);
+}
+
+function buildBatteryIdPrefix_(chem, cells, capacityMah) {
+  const chemCode = normalizeBatteryId_(chem);
+  const cellCount = Math.floor(Number(cells));
+  const capAh = Math.round(Number(capacityMah) / 1000);
+
+  if (!/^[A-Z]{2,3}$/.test(chemCode)) {
+    throw new Error('배터리 종류 코드가 올바르지 않습니다.');
+  }
+
+  if (!cellCount || cellCount <= 0) {
+    throw new Error('셀 수(S)가 올바르지 않습니다.');
+  }
+
+  if (!capAh || capAh <= 0) {
+    throw new Error('용량(mAh)이 올바르지 않습니다.');
+  }
+
+  return chemCode + '-' + cellCount + 'S-' + capAh;
+}
+
+function generateNextBatteryId_(sheet, prefix) {
+  const normalizedPrefix = normalizeBatteryId_(prefix);
+  const rows = sheet.getDataRange().getValues();
+  let maxSeq = 0;
+  const escapedPrefix = normalizedPrefix.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const pattern = new RegExp('^' + escapedPrefix + '-(\\d{3,})$');
+
+  for (let i = 1; i < rows.length; i++) {
+    const match = normalizeBatteryId_(rows[i][0]).match(pattern);
+    if (match) {
+      maxSeq = Math.max(maxSeq, Number(match[1]));
+    }
+  }
+
+  return normalizedPrefix + '-' + String(maxSeq + 1).padStart(3, '0');
 }
 
 function findBattery_(sheet, batteryId) {
@@ -80,20 +127,6 @@ function countCycles_(sheet, batteryId) {
   return count;
 }
 
-function generateNextBatteryId_(sheet) {
-  const rows = sheet.getDataRange().getValues();
-  let maxNum = 0;
-
-  for (let i = 1; i < rows.length; i++) {
-    const match = normalizeBatteryId_(rows[i][0]).match(/^BT(\d+)$/);
-    if (match) {
-      maxNum = Math.max(maxNum, Number(match[1]));
-    }
-  }
-
-  return 'BT' + String(maxNum + 1).padStart(3, '0');
-}
-
 function getSpreadsheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const batteriesSheet = ss.getSheetByName('Batteries');
@@ -115,6 +148,11 @@ function parseRequestParams_(e) {
     startDate: '',
     maxCycles: '',
     pin: '',
+    chem: '',
+    cells: '',
+    capacity: '',
+    oldPin: '',
+    newPin: '',
   };
 
   if (e && e.parameter) {
@@ -125,6 +163,11 @@ function parseRequestParams_(e) {
     params.startDate = String(e.parameter.startDate || '').trim();
     params.maxCycles = String(e.parameter.maxCycles || '').trim();
     params.pin = String(e.parameter.pin || '').trim();
+    params.chem = String(e.parameter.chem || '').trim();
+    params.cells = String(e.parameter.cells || '').trim();
+    params.capacity = String(e.parameter.capacity || '').trim();
+    params.oldPin = String(e.parameter.oldPin || '').trim();
+    params.newPin = String(e.parameter.newPin || '').trim();
   }
 
   if (e && e.postData && e.postData.contents) {
@@ -142,16 +185,52 @@ function parseRequestParams_(e) {
       });
     }
 
-    params.action = params.action || String(body.action || '').trim();
-    params.id = params.id || String(body.id || '').trim();
-    params.worker = params.worker || String(body.worker || '').trim();
-    params.model = params.model || String(body.model || '').trim();
-    params.startDate = params.startDate || String(body.startDate || '').trim();
-    params.maxCycles = params.maxCycles || String(body.maxCycles || '').trim();
-    params.pin = params.pin || String(body.pin || '').trim();
+    Object.keys(params).forEach(function (key) {
+      if (!params[key] && body[key] !== undefined) {
+        params[key] = String(body[key]).trim();
+      }
+    });
   }
 
   return params;
+}
+
+function handleVerifyPin_(params) {
+  if (!verifyAdminPin_(params.pin)) {
+    return jsonResponse_({ success: false, error: '관리자 PIN이 올바르지 않습니다.' });
+  }
+
+  return jsonResponse_({ success: true });
+}
+
+function handleNextId_(params, sheet) {
+  if (!verifyAdminPin_(params.pin)) {
+    return jsonResponse_({ success: false, error: '관리자 PIN이 올바르지 않습니다.' });
+  }
+
+  const prefix = buildBatteryIdPrefix_(params.chem, params.cells, params.capacity);
+
+  return jsonResponse_({
+    success: true,
+    prefix: prefix,
+    nextId: generateNextBatteryId_(sheet, prefix),
+  });
+}
+
+function handleChangePin_(params) {
+  if (!verifyAdminPin_(params.oldPin || params.pin)) {
+    return jsonResponse_({ success: false, error: '현재 PIN이 올바르지 않습니다.' });
+  }
+
+  const newPin = String(params.newPin || '').trim();
+
+  if (!/^\d{4,8}$/.test(newPin)) {
+    return jsonResponse_({ success: false, error: '새 PIN은 4~8자리 숫자여야 합니다.' });
+  }
+
+  PropertiesService.getScriptProperties().setProperty(PIN_PROPERTY_KEY, newPin);
+
+  return jsonResponse_({ success: true });
 }
 
 function handleRegisterBattery_(params) {
@@ -168,16 +247,16 @@ function handleRegisterBattery_(params) {
     return jsonResponse_({ success: false, error: 'Battery ID가 필요합니다.' });
   }
 
-  if (!/^BT\d{3,}$/.test(batteryId)) {
-    return jsonResponse_({ success: false, error: 'Battery ID는 BT001 형식이어야 합니다.' });
+  if (!isValidBatteryId_(batteryId)) {
+    return jsonResponse_({ success: false, error: 'Battery ID 형식이 올바르지 않습니다.' });
   }
 
   if (!model) {
-    return jsonResponse_({ success: false, error: '모델명이 필요합니다.' });
+    return jsonResponse_({ success: false, error: '모델명(Model)이 필요합니다.' });
   }
 
   if (!startDate) {
-    return jsonResponse_({ success: false, error: '사용 시작일이 필요합니다.' });
+    return jsonResponse_({ success: false, error: '사용 시작일(StartDate)이 필요합니다.' });
   }
 
   if (!maxCycles) {
@@ -250,15 +329,12 @@ function doGet(e) {
     const action = params.action;
     const sheets = getSpreadsheet_();
 
-    if (action === 'nextid') {
-      if (!verifyAdminPin_(params.pin)) {
-        return jsonResponse_({ success: false, error: '관리자 PIN이 올바르지 않습니다.' });
-      }
+    if (action === 'verifypin') {
+      return handleVerifyPin_(params);
+    }
 
-      return jsonResponse_({
-        success: true,
-        nextId: generateNextBatteryId_(sheets.batteriesSheet),
-      });
+    if (action === 'nextid') {
+      return handleNextId_(params, sheets.batteriesSheet);
     }
 
     const batteryId = normalizeBatteryId_(params.id);
@@ -294,6 +370,10 @@ function doPost(e) {
 
     if (params.action === 'register') {
       return handleRegisterBattery_(params);
+    }
+
+    if (params.action === 'changepin') {
+      return handleChangePin_(params);
     }
 
     return handleChargingLog_(params);
