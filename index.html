@@ -1811,6 +1811,52 @@
       }
     }
 
+    async function copyTextToClipboard(text) {
+      const value = String(text || '');
+      if (!value) {
+        throw new Error('복사할 내용이 없습니다.');
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(value);
+        return;
+      }
+
+      const textarea = document.createElement('textarea');
+      textarea.value = value;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand('copy');
+      document.body.removeChild(textarea);
+
+      if (!copied) {
+        throw new Error('클립보드 복사에 실패했습니다.');
+      }
+    }
+
+    async function copyAdminQrUrl() {
+      if (!lastRegisteredBattery) {
+        showToast('배터리 정보가 없습니다. 다시 조회해 주세요.', 'error');
+        return;
+      }
+
+      const button = document.getElementById('admin-copy-qr-url-button');
+      const qrUrl = buildQrPayloadText(lastRegisteredBattery.id);
+
+      setButtonBusy(button, true, '복사 중...');
+      try {
+        await copyTextToClipboard(qrUrl);
+        showToast('QR URL을 복사했습니다. 앱손 앱 QR 입력란에 붙여넣으세요.', 'success');
+      } catch (err) {
+        showToast(err.message || 'QR URL 복사에 실패했습니다.', 'error');
+      } finally {
+        setButtonBusy(button, false);
+      }
+    }
+
     async function downloadLabelPng() {
       if (!lastRegisteredBattery) {
         showToast('배터리 정보가 없습니다. 다시 조회해 주세요.', 'error');
@@ -3225,6 +3271,7 @@
         openAdminReprintModal();
       });
       document.getElementById('admin-label-close-button').addEventListener('click', function () { closeModal('admin-label-modal'); });
+      document.getElementById('admin-copy-qr-url-button').addEventListener('click', copyAdminQrUrl);
       document.getElementById('admin-download-label-button').addEventListener('click', downloadLabelPng);
       document.getElementById('admin-download-qr-button').addEventListener('click', downloadQrPng);
       document.getElementById('gate-scan-button').addEventListener('click', startQrScanner);
@@ -3877,6 +3924,7 @@
       <h2 class="mt-1 text-2xl font-bold text-gray-900">QR 라벨 생성</h2>
       <p class="mt-2 text-sm text-gray-500">QR 코드는 항상 <strong>정사각형</strong>입니다. 아래 두 가지를 구분하세요.</p>
       <ul class="mt-2 list-inside list-disc text-sm text-gray-500">
+        <li><strong>QR URL 복사</strong> — 앱손 Label Editor Mobile에서 QR 텍스트로 붙여넣기 (권장)</li>
         <li><strong>라벨 PNG</strong> — ID·모델·QR이 함께 있는 <em>가로형 스티커</em> (820×520 등)</li>
         <li><strong>QR만 PNG</strong> — QR 코드만 <em>정사각형</em> (512×512 등)</li>
       </ul>
@@ -3895,7 +3943,20 @@
         <div class="flex justify-between gap-4"><dt class="text-gray-500">StartDate</dt><dd id="admin-label-start-date" class="font-semibold text-gray-900"></dd></div>
         <div class="flex justify-between gap-4"><dt class="text-gray-500">MaxCycles</dt><dd id="admin-label-max-cycles" class="font-semibold text-gray-900"></dd></div>
       </dl>
-      <p id="admin-label-qr-text" class="mt-3 break-all rounded-lg bg-gray-50 p-3 text-xs text-gray-600"></p>
+      <div class="mt-4 rounded-xl border border-marine/25 bg-marine-light/40 p-4">
+        <p class="text-sm font-semibold text-marine">앱손 OK1000P — QR 텍스트 입력</p>
+        <p class="mt-1 text-xs leading-5 text-gray-600">
+          Label Editor Mobile → <strong>QR 코드</strong> → 아래 URL 붙여넣기 → 인쇄
+        </p>
+        <p id="admin-label-qr-text" class="mt-2 break-all rounded-lg bg-white/90 p-3 text-xs leading-5 text-gray-700"></p>
+        <button
+          id="admin-copy-qr-url-button"
+          type="button"
+          class="mt-3 w-full rounded-xl border border-marine/30 bg-white px-4 py-3.5 text-sm font-bold text-marine"
+        >
+          QR URL 복사
+        </button>
+      </div>
 
       <button id="admin-download-label-button" type="button" class="brand-btn-primary mt-5 w-full rounded-xl px-4 py-4 text-base font-bold text-white">라벨 PNG 다운로드</button>
       <button id="admin-download-qr-button" type="button" class="mt-3 w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-base font-semibold text-gray-700">QR만 PNG 다운로드</button>
