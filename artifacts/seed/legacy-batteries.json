@@ -1,0 +1,2320 @@
+{
+  "source": "D:\\WorkSpace\\Code\\WMP\\artifacts\\source\\legacy-inventory.xlsx",
+  "extractedAt": "2026-05-31",
+  "batteryRowCount": 34,
+  "defaultCellOptions": [
+    "4",
+    "6",
+    "7",
+    "18"
+  ],
+  "defaultCapacityOptions": [
+    "1380",
+    "2200",
+    "3400",
+    "4200",
+    "5200",
+    "6000",
+    "8000",
+    "8200",
+    "10000",
+    "16000",
+    "19200",
+    "22000",
+    "28000",
+    "30000",
+    "35000",
+    "37500",
+    "39000",
+    "64000",
+    "75000"
+  ],
+  "inventory": [
+    {
+      "rawName": "7S 19200mAh",
+      "cells": "7",
+      "parallel": 1,
+      "capacity": "19200",
+      "chem": "LPO",
+      "qty": 2
+    },
+    {
+      "rawName": "7S 28000mAh",
+      "cells": "7",
+      "parallel": 1,
+      "capacity": "28000",
+      "chem": "LPO",
+      "qty": 4
+    },
+    {
+      "rawName": "7S 37500mAh",
+      "cells": "7",
+      "parallel": 1,
+      "capacity": "37500",
+      "chem": "LPO",
+      "qty": 4
+    },
+    {
+      "rawName": "18S 2P 75000mAh",
+      "cells": "18",
+      "parallel": 2,
+      "capacity": "75000",
+      "chem": "LPO",
+      "qty": 9
+    },
+    {
+      "rawName": "18S 2P 75000mAh",
+      "cells": "18",
+      "parallel": 2,
+      "capacity": "75000",
+      "chem": "LPO",
+      "qty": 5
+    },
+    {
+      "rawName": "18S 2P 64000mAh",
+      "cells": "18",
+      "parallel": 2,
+      "capacity": "64000",
+      "chem": "LPO",
+      "qty": 5
+    },
+    {
+      "rawName": "7S 35000mAh",
+      "cells": "7",
+      "parallel": 1,
+      "capacity": "35000",
+      "chem": "LPO",
+      "qty": 38
+    },
+    {
+      "rawName": "6S 30000mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "30000",
+      "chem": "LPO",
+      "qty": 16
+    },
+    {
+      "rawName": "6S 30000mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "30000",
+      "chem": "LPO",
+      "qty": 19
+    },
+    {
+      "rawName": "6S 30000mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "30000",
+      "chem": "LPO",
+      "qty": 12
+    },
+    {
+      "rawName": "6S 35000mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "35000",
+      "chem": "LPO",
+      "qty": 7
+    },
+    {
+      "rawName": "6S 30000mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "30000",
+      "chem": "LPO",
+      "qty": 15
+    },
+    {
+      "rawName": "6S 30000mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "30000",
+      "chem": "LPO",
+      "qty": 15
+    },
+    {
+      "rawName": "6S 30000mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "30000",
+      "chem": "LPO",
+      "qty": 5
+    },
+    {
+      "rawName": "6S 22000mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "22000",
+      "chem": "LPO",
+      "qty": 4
+    },
+    {
+      "rawName": "6S 22000mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "22000",
+      "chem": "LPO",
+      "qty": 15
+    },
+    {
+      "rawName": "6S 22000mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "22000",
+      "chem": "LPO",
+      "qty": 2
+    },
+    {
+      "rawName": "6S 16000mah 25C",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "16000",
+      "chem": "LPO",
+      "qty": 4
+    },
+    {
+      "rawName": "6S 10000mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "10000",
+      "chem": "LPO",
+      "qty": 1
+    },
+    {
+      "rawName": "6S 8200mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "8200",
+      "chem": "LPO",
+      "qty": 4
+    },
+    {
+      "rawName": "6S 5200mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "5200",
+      "chem": "LPO",
+      "qty": 6
+    },
+    {
+      "rawName": "4S 4200mAh",
+      "cells": "4",
+      "parallel": 1,
+      "capacity": "4200",
+      "chem": "LPO",
+      "qty": 1
+    },
+    {
+      "rawName": "4S 3400mAh",
+      "cells": "4",
+      "parallel": 1,
+      "capacity": "3400",
+      "chem": "LPO",
+      "qty": 2
+    },
+    {
+      "rawName": "4S 2200mAh",
+      "cells": "4",
+      "parallel": 1,
+      "capacity": "2200",
+      "chem": "LPO",
+      "qty": 4
+    },
+    {
+      "rawName": "4S 8000mAh",
+      "cells": "4",
+      "parallel": 1,
+      "capacity": "8000",
+      "chem": "LPO",
+      "qty": 6
+    },
+    {
+      "rawName": "6S 1380mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "1380",
+      "chem": "LPO",
+      "qty": 5
+    },
+    {
+      "rawName": "6S 8000mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "8000",
+      "chem": "LPO",
+      "qty": 2
+    },
+    {
+      "rawName": "6S",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": null,
+      "chem": "LPO",
+      "qty": 1
+    },
+    {
+      "rawName": "4S 30000mAh",
+      "cells": "4",
+      "parallel": 1,
+      "capacity": "30000",
+      "chem": "LPO",
+      "qty": 2
+    },
+    {
+      "rawName": "PT-B5200N",
+      "cells": null,
+      "parallel": 1,
+      "capacity": null,
+      "chem": "LPO",
+      "qty": 3
+    },
+    {
+      "rawName": "7S 35000mAh",
+      "cells": "7",
+      "parallel": 1,
+      "capacity": "35000",
+      "chem": "LPO",
+      "qty": 46
+    },
+    {
+      "rawName": "7S 39000mAh",
+      "cells": "7",
+      "parallel": 1,
+      "capacity": "39000",
+      "chem": "LPO",
+      "qty": 2
+    },
+    {
+      "rawName": "6S 10000mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "10000",
+      "chem": "LPO",
+      "qty": 2
+    },
+    {
+      "rawName": "6S 6000mAh",
+      "cells": "6",
+      "parallel": 1,
+      "capacity": "6000",
+      "chem": "LPO",
+      "qty": 2
+    }
+  ],
+  "specSummary": {
+    "7S-35000": {
+      "qty": 84,
+      "names": [
+        "7S 35000mAh"
+      ]
+    },
+    "6S-30000": {
+      "qty": 82,
+      "names": [
+        "6S 30000mAh"
+      ]
+    },
+    "6S-22000": {
+      "qty": 21,
+      "names": [
+        "6S 22000mAh"
+      ]
+    },
+    "18S-75000": {
+      "qty": 14,
+      "names": [
+        "18S 2P 75000mAh"
+      ]
+    },
+    "6S-35000": {
+      "qty": 7,
+      "names": [
+        "6S 35000mAh"
+      ]
+    },
+    "4S-8000": {
+      "qty": 6,
+      "names": [
+        "4S 8000mAh"
+      ]
+    },
+    "6S-5200": {
+      "qty": 6,
+      "names": [
+        "6S 5200mAh"
+      ]
+    },
+    "18S-64000": {
+      "qty": 5,
+      "names": [
+        "18S 2P 64000mAh"
+      ]
+    },
+    "6S-1380": {
+      "qty": 5,
+      "names": [
+        "6S 1380mAh"
+      ]
+    },
+    "4S-2200": {
+      "qty": 4,
+      "names": [
+        "4S 2200mAh"
+      ]
+    },
+    "6S-16000": {
+      "qty": 4,
+      "names": [
+        "6S 16000mah 25C"
+      ]
+    },
+    "6S-8200": {
+      "qty": 4,
+      "names": [
+        "6S 8200mAh"
+      ]
+    },
+    "7S-28000": {
+      "qty": 4,
+      "names": [
+        "7S 28000mAh"
+      ]
+    },
+    "7S-37500": {
+      "qty": 4,
+      "names": [
+        "7S 37500mAh"
+      ]
+    },
+    "6S-10000": {
+      "qty": 3,
+      "names": [
+        "6S 10000mAh"
+      ]
+    },
+    "PT-B5200N": {
+      "qty": 3,
+      "names": [
+        "PT-B5200N"
+      ]
+    },
+    "4S-30000": {
+      "qty": 2,
+      "names": [
+        "4S 30000mAh"
+      ]
+    },
+    "4S-3400": {
+      "qty": 2,
+      "names": [
+        "4S 3400mAh"
+      ]
+    },
+    "6S-6000": {
+      "qty": 2,
+      "names": [
+        "6S 6000mAh"
+      ]
+    },
+    "6S-8000": {
+      "qty": 2,
+      "names": [
+        "6S 8000mAh"
+      ]
+    },
+    "7S-19200": {
+      "qty": 2,
+      "names": [
+        "7S 19200mAh"
+      ]
+    },
+    "7S-39000": {
+      "qty": 2,
+      "names": [
+        "7S 39000mAh"
+      ]
+    },
+    "4S-4200": {
+      "qty": 1,
+      "names": [
+        "4S 4200mAh"
+      ]
+    },
+    "6S": {
+      "qty": 1,
+      "names": [
+        "6S"
+      ]
+    }
+  },
+  "seedRows": [
+    {
+      "batteryId": "LPO-4S-2-001",
+      "model": "4S 2200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 2200mAh"
+    },
+    {
+      "batteryId": "LPO-4S-2-002",
+      "model": "4S 2200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 2200mAh"
+    },
+    {
+      "batteryId": "LPO-4S-2-003",
+      "model": "4S 2200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 2200mAh"
+    },
+    {
+      "batteryId": "LPO-4S-2-004",
+      "model": "4S 2200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 2200mAh"
+    },
+    {
+      "batteryId": "LPO-4S-3-001",
+      "model": "4S 3400mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 3400mAh"
+    },
+    {
+      "batteryId": "LPO-4S-3-002",
+      "model": "4S 3400mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 3400mAh"
+    },
+    {
+      "batteryId": "LPO-4S-4-001",
+      "model": "4S 4200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 4200mAh"
+    },
+    {
+      "batteryId": "LPO-4S-8-001",
+      "model": "4S 8000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 8000mAh"
+    },
+    {
+      "batteryId": "LPO-4S-8-002",
+      "model": "4S 8000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 8000mAh"
+    },
+    {
+      "batteryId": "LPO-4S-8-003",
+      "model": "4S 8000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 8000mAh"
+    },
+    {
+      "batteryId": "LPO-4S-8-004",
+      "model": "4S 8000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 8000mAh"
+    },
+    {
+      "batteryId": "LPO-4S-8-005",
+      "model": "4S 8000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 8000mAh"
+    },
+    {
+      "batteryId": "LPO-4S-8-006",
+      "model": "4S 8000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 8000mAh"
+    },
+    {
+      "batteryId": "LPO-4S-30-001",
+      "model": "4S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-4S-30-002",
+      "model": "4S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "4S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-1-001",
+      "model": "6S 1380mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 1380mAh"
+    },
+    {
+      "batteryId": "LPO-6S-1-002",
+      "model": "6S 1380mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 1380mAh"
+    },
+    {
+      "batteryId": "LPO-6S-1-003",
+      "model": "6S 1380mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 1380mAh"
+    },
+    {
+      "batteryId": "LPO-6S-1-004",
+      "model": "6S 1380mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 1380mAh"
+    },
+    {
+      "batteryId": "LPO-6S-1-005",
+      "model": "6S 1380mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 1380mAh"
+    },
+    {
+      "batteryId": "LPO-6S-5-001",
+      "model": "6S 5200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 5200mAh"
+    },
+    {
+      "batteryId": "LPO-6S-5-002",
+      "model": "6S 5200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 5200mAh"
+    },
+    {
+      "batteryId": "LPO-6S-5-003",
+      "model": "6S 5200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 5200mAh"
+    },
+    {
+      "batteryId": "LPO-6S-5-004",
+      "model": "6S 5200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 5200mAh"
+    },
+    {
+      "batteryId": "LPO-6S-5-005",
+      "model": "6S 5200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 5200mAh"
+    },
+    {
+      "batteryId": "LPO-6S-5-006",
+      "model": "6S 5200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 5200mAh"
+    },
+    {
+      "batteryId": "LPO-6S-6-001",
+      "model": "6S 6000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 6000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-6-002",
+      "model": "6S 6000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 6000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-8-001",
+      "model": "6S 8000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 8000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-8-002",
+      "model": "6S 8000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 8000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-8-003",
+      "model": "6S 8200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 8200mAh"
+    },
+    {
+      "batteryId": "LPO-6S-8-004",
+      "model": "6S 8200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 8200mAh"
+    },
+    {
+      "batteryId": "LPO-6S-8-005",
+      "model": "6S 8200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 8200mAh"
+    },
+    {
+      "batteryId": "LPO-6S-8-006",
+      "model": "6S 8200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 8200mAh"
+    },
+    {
+      "batteryId": "LPO-6S-10-001",
+      "model": "6S 10000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 10000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-10-002",
+      "model": "6S 10000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 10000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-10-003",
+      "model": "6S 10000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 10000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-16-001",
+      "model": "6S 16000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 16000mah 25C"
+    },
+    {
+      "batteryId": "LPO-6S-16-002",
+      "model": "6S 16000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 16000mah 25C"
+    },
+    {
+      "batteryId": "LPO-6S-16-003",
+      "model": "6S 16000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 16000mah 25C"
+    },
+    {
+      "batteryId": "LPO-6S-16-004",
+      "model": "6S 16000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 16000mah 25C"
+    },
+    {
+      "batteryId": "LPO-6S-22-001",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-002",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-003",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-004",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-005",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-006",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-007",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-008",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-009",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-010",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-011",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-012",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-013",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-014",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-015",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-016",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-017",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-018",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-019",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-020",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-22-021",
+      "model": "6S 22000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 22000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-001",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-002",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-003",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-004",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-005",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-006",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-007",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-008",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-009",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-010",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-011",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-012",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-013",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-014",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-015",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-016",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-017",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-018",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-019",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-020",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-021",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-022",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-023",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-024",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-025",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-026",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-027",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-028",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-029",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-030",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-031",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-032",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-033",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-034",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-035",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-036",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-037",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-038",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-039",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-040",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-041",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-042",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-043",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-044",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-045",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-046",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-047",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-048",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-049",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-050",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-051",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-052",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-053",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-054",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-055",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-056",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-057",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-058",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-059",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-060",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-061",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-062",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-063",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-064",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-065",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-066",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-067",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-068",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-069",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-070",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-071",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-072",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-073",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-074",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-075",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-076",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-077",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-078",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-079",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-080",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-081",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-30-082",
+      "model": "6S 30000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 30000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-35-001",
+      "model": "6S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-35-002",
+      "model": "6S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-35-003",
+      "model": "6S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-35-004",
+      "model": "6S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-35-005",
+      "model": "6S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-35-006",
+      "model": "6S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-6S-35-007",
+      "model": "6S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "6S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-19-001",
+      "model": "7S 19200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 19200mAh"
+    },
+    {
+      "batteryId": "LPO-7S-19-002",
+      "model": "7S 19200mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 19200mAh"
+    },
+    {
+      "batteryId": "LPO-7S-28-001",
+      "model": "7S 28000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 28000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-28-002",
+      "model": "7S 28000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 28000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-28-003",
+      "model": "7S 28000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 28000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-28-004",
+      "model": "7S 28000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 28000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-001",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-002",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-003",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-004",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-005",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-006",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-007",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-008",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-009",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-010",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-011",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-012",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-013",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-014",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-015",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-016",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-017",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-018",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-019",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-020",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-021",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-022",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-023",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-024",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-025",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-026",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-027",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-028",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-029",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-030",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-031",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-032",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-033",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-034",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-035",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-036",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-037",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-038",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-039",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-040",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-041",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-042",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-043",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-044",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-045",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-046",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-047",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-048",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-049",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-050",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-051",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-052",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-053",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-054",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-055",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-056",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-057",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-058",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-059",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-060",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-061",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-062",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-063",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-064",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-065",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-066",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-067",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-068",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-069",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-070",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-071",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-072",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-073",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-074",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-075",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-076",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-077",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-078",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-079",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-080",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-081",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-082",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-083",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-35-084",
+      "model": "7S 35000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 35000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-37-001",
+      "model": "7S 37500mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 37500mAh"
+    },
+    {
+      "batteryId": "LPO-7S-37-002",
+      "model": "7S 37500mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 37500mAh"
+    },
+    {
+      "batteryId": "LPO-7S-37-003",
+      "model": "7S 37500mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 37500mAh"
+    },
+    {
+      "batteryId": "LPO-7S-37-004",
+      "model": "7S 37500mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 37500mAh"
+    },
+    {
+      "batteryId": "LPO-7S-39-001",
+      "model": "7S 39000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 39000mAh"
+    },
+    {
+      "batteryId": "LPO-7S-39-002",
+      "model": "7S 39000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "7S 39000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-64-001",
+      "model": "18S 2P 64000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 64000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-64-002",
+      "model": "18S 2P 64000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 64000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-64-003",
+      "model": "18S 2P 64000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 64000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-64-004",
+      "model": "18S 2P 64000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 64000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-64-005",
+      "model": "18S 2P 64000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 64000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-75-001",
+      "model": "18S 2P 75000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 75000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-75-002",
+      "model": "18S 2P 75000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 75000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-75-003",
+      "model": "18S 2P 75000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 75000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-75-004",
+      "model": "18S 2P 75000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 75000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-75-005",
+      "model": "18S 2P 75000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 75000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-75-006",
+      "model": "18S 2P 75000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 75000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-75-007",
+      "model": "18S 2P 75000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 75000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-75-008",
+      "model": "18S 2P 75000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 75000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-75-009",
+      "model": "18S 2P 75000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 75000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-75-010",
+      "model": "18S 2P 75000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 75000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-75-011",
+      "model": "18S 2P 75000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 75000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-75-012",
+      "model": "18S 2P 75000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 75000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-75-013",
+      "model": "18S 2P 75000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 75000mAh"
+    },
+    {
+      "batteryId": "LPO-18S-75-014",
+      "model": "18S 2P 75000mAh (LiPo)",
+      "startDate": "2026-01-01",
+      "maxCycles": 300,
+      "rawName": "18S 2P 75000mAh"
+    }
+  ],
+  "notes": [
+    "BATLog 등록 양식 필드(종류·셀·용량)만 추출합니다.",
+    "재고 등급·품목코드·창고 정보는 포함하지 않습니다."
+  ]
+}

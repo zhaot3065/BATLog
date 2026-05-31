@@ -118,7 +118,7 @@
 </head>
 <body class="min-h-screen text-gray-800">
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbyNgPdmdi1zDrzC2WMx1C0EB5ZQHLGd2O65niUWOCZEK7u6neQ5G117L3fN4cD-Nv6mIA/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbyma8n8Y4NIqZHcgjOdCUqRQUWpTNLOQLOkIItmM-JKseLNsux9ZpSbmK4pmPXhPk10Yw/exec';
 
     // 시트 D열(MaxCycles)이 비어 있을 때 사용할 기본 수명. 0이면 기본값 없음.
     const DEFAULT_MAX_CYCLES = 300;
@@ -139,8 +139,12 @@
 
     const CUSTOM_OPTION_VALUE = '__custom__';
     const REGISTER_OPTIONS_STORAGE_KEY = 'batlog.register.options';
-    const DEFAULT_CELL_OPTIONS = ['3', '4', '5', '6', '8', '10', '12'];
-    const DEFAULT_CAPACITY_OPTIONS = ['5000', '10000', '16000', '22000', '30000', '44000'];
+    const DEFAULT_CELL_OPTIONS = ['4', '6', '7', '18'];
+    const DEFAULT_CAPACITY_OPTIONS = [
+      '1380', '2200', '3400', '4200', '5200', '6000', '8000', '8200', '10000',
+      '16000', '19200', '22000', '28000', '30000', '35000', '37500', '39000',
+      '64000', '75000',
+    ];
     const DEFAULT_MAX_CYCLE_OPTIONS = ['200', '300', '500', '1000'];
 
     let customRegisterOptions = {
@@ -151,16 +155,16 @@
     };
 
     const LABEL_SIZE_OPTIONS = [
-      { value: '640x400', label: '640×400 (컴팩트)' },
-      { value: '820x520', label: '820×520 (권장)' },
-      { value: '1200x760', label: '1200×760 (고해상도)' },
-      { value: '1600x1000', label: '1600×1000 (인쇄용)' },
+      { value: '640x400', label: '640×400 — 라벨 전체 (가로형)' },
+      { value: '820x520', label: '820×520 — 라벨 전체 (권장)' },
+      { value: '1200x760', label: '1200×760 — 라벨 전체 (고해상도)' },
+      { value: '1600x1000', label: '1600×1000 — 라벨 전체 (인쇄용)' },
     ];
 
     const QR_SIZE_OPTIONS = [
-      { value: '512', label: '512px (기본)' },
-      { value: '1024', label: '1024px (고해상도)' },
-      { value: '2048', label: '2048px (최고 해상도)' },
+      { value: '512', label: '512×512px — QR만 (정사각형)' },
+      { value: '1024', label: '1024×1024px — QR만 (정사각형)' },
+      { value: '2048', label: '2048×2048px — QR만 (정사각형)' },
     ];
 
     const WORKERS = [
@@ -584,8 +588,8 @@
       document.getElementById('admin-start-date').value = new Date().toISOString().slice(0, 10);
       refreshAllRegisterSelects({
         chem: 'LPO',
-        cells: '6',
-        capacity: '22000',
+        cells: '7',
+        capacity: '35000',
         maxCycles: String(DEFAULT_MAX_CYCLES),
       });
       syncModelFromSpecs();
@@ -744,7 +748,9 @@
       const preview = document.getElementById('admin-label-preview');
       const canvas = await buildLabelCanvas(battery);
       preview.innerHTML = '';
-      canvas.className = 'mx-auto max-w-full rounded-xl border border-gray-200';
+      canvas.className = 'mx-auto block max-w-full rounded-xl border border-gray-200';
+      canvas.style.width = '100%';
+      canvas.style.height = 'auto';
       preview.appendChild(canvas);
     }
 
@@ -1739,12 +1745,16 @@
     <div class="brand-card max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl p-6">
       <p class="section-label text-sm font-semibold text-marine">Label</p>
       <h2 class="mt-1 text-2xl font-bold text-gray-900">QR 라벨 생성</h2>
-      <p class="mt-2 text-sm text-gray-500">크기를 선택한 뒤 PNG를 다운로드해 앱손 프린터 앱에서 출력하세요.</p>
+      <p class="mt-2 text-sm text-gray-500">QR 코드는 항상 <strong>정사각형</strong>입니다. 아래 두 가지를 구분하세요.</p>
+      <ul class="mt-2 list-inside list-disc text-sm text-gray-500">
+        <li><strong>라벨 PNG</strong> — ID·모델·QR이 함께 있는 <em>가로형 스티커</em> (820×520 등)</li>
+        <li><strong>QR만 PNG</strong> — QR 코드만 <em>정사각형</em> (512×512 등)</li>
+      </ul>
 
-      <label for="admin-label-size" class="mt-4 block text-sm font-semibold text-gray-700">라벨 PNG 크기</label>
+      <label for="admin-label-size" class="mt-4 block text-sm font-semibold text-gray-700">라벨 PNG — 스티커 전체 크기 (가로형)</label>
       <select id="admin-label-size" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"></select>
 
-      <label for="admin-qr-size" class="mt-4 block text-sm font-semibold text-gray-700">QR만 PNG 크기</label>
+      <label for="admin-qr-size" class="mt-4 block text-sm font-semibold text-gray-700">QR만 PNG — 정사각형 한 변 길이</label>
       <select id="admin-qr-size" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"></select>
 
       <div id="admin-label-preview" class="mt-5 overflow-hidden rounded-xl bg-gray-50 p-3"></div>

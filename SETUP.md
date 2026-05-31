@@ -8,7 +8,50 @@
 
 | A: BatteryID | B: Model | C: StartDate | D: MaxCycles |
 |--------------|----------|--------------|--------------|
-| BT001 | 6S 22000mAh | 2026-01-01 | 300 |
+| LPO-6S-22-001 | 6S 22000mAh (LiPo) | 2026-01-01 | 300 |
+
+#### Battery ID 규칙 (확정)
+
+```
+{CHEM}-{N}S-{용량Ah}-{순번}
+```
+
+| 코드 | 종류 |
+|------|------|
+| LPO | LiPo (리튬폴리머) |
+| LIO | Li-ion (리튬이온) |
+| LFE | LiFe (인산철) |
+| NMH | NiMH |
+| SSE | 전고체 |
+| SSI | 반고체 |
+
+- **용량Ah** = mAh ÷ 1000 (22000 → `22`)
+- **순번** = 같은 `{종류-S-용량Ah}` 조합에서 001부터 자동 증가
+- 예: `LPO-7S-35-001` → 7S 35000mAh LiPo 1번
+- 기존 `BT001` 형식도 **조회·기록**은 계속 지원
+
+#### 레거시 재고 일괄 반영
+
+`artifacts/source/legacy-inventory.xlsx`(WMP) 기준 배터리 **266개**를 미리 생성해 두었습니다.
+
+1. `artifacts/seed/batteries-seed.csv` 열기
+2. Google 스프레드시트 `Batteries` 시트 2행부터 붙여넣기 (헤더 제외)
+3. `StartDate`는 필요 시 일괄 수정
+
+재고 파일이 바뀌면 아래 명령으로 다시 추출합니다.
+
+```powershell
+python scripts/extract_legacy_batteries.py
+```
+
+생성물 (`artifacts/seed/`):
+
+- `legacy-batteries.json` — 추출 원본·요약 (BATLog 양식 필드만)
+- `batteries-seed.csv` — Batteries 시트용 CSV (등급 등 재고 필드 미포함)
+
+Excel 읽기 등 범용 로직은 `D:\WorkSpace\Code\utility` 에 있습니다.
+
+등록 화면 드롭다운(셀 수·용량)도 같은 재고 기준으로 맞춰져 있습니다.
 
 ### ChargingLogs
 

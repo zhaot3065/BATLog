@@ -53,10 +53,16 @@ BATLog/
 ├── apps-script/
 │   └── Code.gs             # Google Apps Script 백엔드
 ├── scripts/
-│   └── publish-github.ps1  # GitHub push + Pages 설정 스크립트
+│   ├── publish-github.ps1  # GitHub push + Pages 설정
+│   └── extract_legacy_batteries.py  # 재고 → seed 산출 (BATLog 전용)
+├── artifacts/              # 코드 외 산출물
+│   └── seed/               # Batteries 시트용 CSV·JSON
 ├── SETUP.md                # 상세 설정 가이드
 └── README.md
 ```
+
+범용 도구(xlsx 읽기 등)는 형제 폴더 `D:\WorkSpace\Code\utility` 에 둡니다.  
+WMP 등 다른 프로젝트는 `D:\WorkSpace` 루트 Git으로 관리하고, **BATLog만** 이 폴더에서 commit/push 합니다.
 
 ---
 
@@ -68,7 +74,7 @@ BATLog/
 
 | A: BatteryID | B: Model | C: StartDate | D: MaxCycles |
 |--------------|----------|--------------|--------------|
-| BT001 | 6S 22000mAh | 2026-01-01 | 300 |
+| LPO-6S-22-001 | 6S 22000mAh (LiPo) | 2026-01-01 | 300 |
 
 #### `ChargingLogs` 시트
 
@@ -112,17 +118,32 @@ git push
 
 ---
 
+## Battery ID 규칙
+
+```
+{CHEM}-{N}S-{용량Ah}-{순번}
+```
+
+| 코드 | 종류 | 예시 |
+|------|------|------|
+| LPO | LiPo | `LPO-6S-22-001` (6S 22000mAh) |
+| LIO | Li-ion | `LIO-6S-16-001` |
+| LFE | LiFe | `LFE-4S-10-001` |
+| NMH | NiMH | `NMH-6S-5-001` |
+| SSE | 전고체 | `SSE-6S-22-001` |
+| SSI | 반고체 | `SSI-6S-22-001` |
+
+관리자 등록 화면에서 종류·셀·용량을 선택하면 ID와 Model이 자동 생성됩니다. 기존 `BT001` 형식 ID도 스캔·기록은 계속 됩니다.
+
+---
+
 ## 관리자 — 배터리 등록 · QR 라벨
 
-관리자 전용 URL (북마크 권장):
+웹앱 우측 상단 **자물쇠 아이콘** → PIN 로그인 → **배터리 등록** 버튼
 
-```
-https://zhaot3065.github.io/BATLog/?mode=admin
-```
-
-1. 관리자 PIN 입력 (기본값 `8842` — `Code.gs`와 `index.html`에서 변경)
-2. 배터리 정보 입력 → **등록하고 QR 만들기**
-3. **라벨 PNG 다운로드** → 앱손 프린터 앱에서 불러와 출력
+1. 관리자 PIN 입력 (초기값 `8842`, 로그인 후 변경 가능)
+2. 드롭다운에서 종류·셀·용량 선택 → **등록하고 QR 만들기**
+3. 라벨/QR 크기 선택 후 **PNG 다운로드** → 앱손 프린터 앱에서 출력
 
 | 다운로드 | 용도 |
 |----------|------|
@@ -146,9 +167,9 @@ https://zhaot3065.github.io/BATLog/?mode=admin
 
 | 형식 | 예시 | 비고 |
 |------|------|------|
-| ID만 | `BT001` | `API_URL` 설정 필요 |
-| 웹앱 링크 | `https://zhaot3065.github.io/BATLog/?id=BT001` | URL 접속 시 자동 조회 |
-| API + ID (권장) | `BATLOG\|https://script.google.com/.../exec\|BT001` | 앱 QR 스캔용 |
+| ID만 | `LPO-6S-22-001` | `API_URL` 설정 필요 |
+| 웹앱 링크 | `https://zhaot3065.github.io/BATLog/?id=LPO-6S-22-001` | URL 접속 시 자동 조회 |
+| API + ID (권장) | `BATLOG\|https://script.google.com/.../exec\|LPO-6S-22-001` | 앱 QR 스캔용 |
 | Apps Script URL | `https://script.google.com/.../exec?id=BT001` | 앱 QR 스캔용 (기본 카메라는 JSON만 표시) |
 
 ---
