@@ -263,6 +263,7 @@
     const CUSTOM_OPTION_VALUE = '__custom__';
     const REGISTER_OPTIONS_STORAGE_KEY = 'batlog.register.options';
     const BATTERY_LIST_STORAGE_KEY = 'batlog.battery.list';
+    const WORKER_MEMORY_STORAGE_KEY = 'batlog.worker.last';
     const DEFAULT_CELL_OPTIONS = ['4', '6', '7', '18'];
     const DEFAULT_CAPACITY_OPTIONS = [
       '1380', '2200', '3400', '4200', '5200', '6000', '8000', '8200', '10000',
@@ -1848,6 +1849,27 @@
       showScreen('scan-screen');
     }
 
+    async function goToAppHome() {
+      hideSuccessModal();
+      await stopQrScanner();
+      currentBatteryId = null;
+      currentBatteryModel = '';
+      currentBatteryStartDate = '';
+      currentMaxCycles = 0;
+      currentCycleCount = 0;
+      resetSubmitButton();
+
+      if (window.history.replaceState) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+
+      if (hasQrAccess()) {
+        showScanScreen();
+      } else {
+        showGateScreen();
+      }
+    }
+
     function setErrorMessage(message) {
       document.getElementById('error-message').textContent = message;
     }
@@ -2010,7 +2032,6 @@
       currentBatteryStartDate = '';
       currentMaxCycles = 0;
       currentCycleCount = 0;
-      document.getElementById('worker-select').selectedIndex = 0;
       resetSubmitButton();
 
       if (window.history.replaceState) {
@@ -2033,6 +2054,43 @@
       }
     }
 
+    function getRememberedWorker() {
+      try {
+        const saved = localStorage.getItem(WORKER_MEMORY_STORAGE_KEY);
+        if (!saved) {
+          return '';
+        }
+        const exists = WORKERS.some(function (worker) {
+          return worker.value === saved;
+        });
+        return exists ? saved : '';
+      } catch (err) {
+        return '';
+      }
+    }
+
+    function saveRememberedWorker(worker) {
+      if (!worker) {
+        return;
+      }
+      try {
+        localStorage.setItem(WORKER_MEMORY_STORAGE_KEY, worker);
+      } catch (err) {
+        // private browsing 등 저장 불가 시 무시
+      }
+    }
+
+    function populateWorkerSelect(selectEl) {
+      selectEl.innerHTML = WORKERS.map(function (worker) {
+        return '<option value="' + worker.value + '">' + worker.label + '</option>';
+      }).join('');
+
+      const remembered = getRememberedWorker();
+      if (remembered) {
+        selectEl.value = remembered;
+      }
+    }
+
     function renderBatteryCard(data) {
       currentBatteryId = data.id;
       currentBatteryModel = data.model || '-';
@@ -2047,9 +2105,7 @@
       updateLifecycleUI(currentCycleCount, data.maxCycles);
 
       const workerSelect = document.getElementById('worker-select');
-      workerSelect.innerHTML = WORKERS.map(function (worker) {
-        return '<option value="' + worker.value + '">' + worker.label + '</option>';
-      }).join('');
+      populateWorkerSelect(workerSelect);
 
       resetSubmitButton();
       showScreen('battery-screen');
@@ -2121,6 +2177,7 @@
 
         currentCycleCount = Number(data.cycleCount) || (currentCycleCount + 1);
         document.getElementById('battery-cycle-count').textContent = String(currentCycleCount);
+        saveRememberedWorker(worker);
         showSuccessModal({
           id: currentBatteryId,
           model: currentBatteryModel,
@@ -2327,6 +2384,7 @@
       document.querySelectorAll('.modal-scroll-body').forEach(bindScrollIsolation);
       bindScrollIsolation(document.getElementById('admin-reprint-suggestions'));
 
+      document.getElementById('header-home-button').addEventListener('click', goToAppHome);
       document.getElementById('header-admin-btn').addEventListener('click', handleAdminButtonClick);
       document.getElementById('header-battery-register-btn').addEventListener('click', openAdminRegisterModal);
       document.getElementById('header-battery-register-btn-mobile').addEventListener('click', openAdminRegisterModal);
@@ -2479,13 +2537,13 @@
 
   <header class="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur-md">
     <div class="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
-      <a href="https://marine-drone.co.kr/" target="_blank" rel="noopener noreferrer" class="flex items-center">
+      <button id="header-home-button" type="button" title="처음으로" class="flex items-center rounded-lg p-1 transition hover:bg-gray-50">
         <img
           src="https://marine-drone.co.kr/data/skin/respon_default/images/skin/logo.png"
           alt="주식회사 해양드론기술"
           class="h-9 w-auto"
         >
-      </a>
+      </button>
       <div class="flex items-center gap-2">
         <button
           id="header-battery-register-btn"
