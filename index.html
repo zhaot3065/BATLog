@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#00a8d4">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="BATLog">
+  <link rel="icon" type="image/png" href="assets/app-icon2.png">
+  <link rel="apple-touch-icon" href="assets/app-icon2.png">
   <title>BATLog - 배터리 충전 기록 | 해양드론기술</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -83,6 +88,7 @@
       max-height: inherit;
       overflow-y: auto;
       overscroll-behavior: contain;
+      touch-action: pan-y;
       padding: 1.5rem;
       scrollbar-width: thin;
       scrollbar-color: rgba(34, 34, 34, 0.25) transparent;
@@ -109,14 +115,29 @@
         max(1rem, env(safe-area-inset-top, 0px))
         1rem
         max(1rem, env(safe-area-inset-bottom, 0px));
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
+    html.modal-open,
+    body.modal-open {
+      overflow: hidden;
+    }
+
+    body.modal-open {
+      position: fixed;
+      width: 100%;
+      left: 0;
+      right: 0;
     }
 
     .reprint-suggest-list {
       max-height: 11rem;
       overflow-y: auto;
       overflow-x: hidden;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
       border: 1px solid #e0e0e0;
       border-radius: 0.75rem;
       background: #fff;
@@ -306,6 +327,8 @@
     let adminPinValue = '';
     let lastRegisteredBattery = null;
     let loadingOverlayCount = 0;
+    let openModalCount = 0;
+    let savedBodyScrollY = 0;
     let registerInitCache = null;
     let registerInitCacheKey = '';
     let registerPrefetchPromise = null;
@@ -1752,12 +1775,47 @@
       });
     }
 
+    function lockBodyScroll() {
+      if (openModalCount === 0) {
+        savedBodyScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+        document.documentElement.classList.add('modal-open');
+        document.body.classList.add('modal-open');
+        document.body.style.top = '-' + savedBodyScrollY + 'px';
+      }
+      openModalCount += 1;
+    }
+
+    function unlockBodyScroll() {
+      openModalCount = Math.max(0, openModalCount - 1);
+      if (openModalCount === 0) {
+        document.documentElement.classList.remove('modal-open');
+        document.body.classList.remove('modal-open');
+        document.body.style.top = '';
+        window.scrollTo(0, savedBodyScrollY);
+      }
+    }
+
+    function bindScrollIsolation(element) {
+      if (!element || element.dataset.scrollIsolation === '1') {
+        return;
+      }
+      element.dataset.scrollIsolation = '1';
+      element.addEventListener('wheel', function (event) {
+        event.stopPropagation();
+      }, { passive: true });
+      element.addEventListener('touchmove', function (event) {
+        event.stopPropagation();
+      }, { passive: true });
+    }
+
     function openModal(modalId) {
       document.getElementById(modalId).classList.remove('hidden');
+      lockBodyScroll();
     }
 
     function closeModal(modalId) {
       document.getElementById(modalId).classList.add('hidden');
+      unlockBodyScroll();
     }
 
     function scrollModalFieldIntoView(element) {
@@ -1929,10 +1987,12 @@
       document.getElementById('success-modal-cycle-count').textContent = String(summary.cycleCount);
       updateLifecycleUI(summary.cycleCount, summary.maxCycles);
       document.getElementById('success-modal').classList.remove('hidden');
+      lockBodyScroll();
     }
 
     function hideSuccessModal() {
       document.getElementById('success-modal').classList.add('hidden');
+      unlockBodyScroll();
     }
 
     async function returnToScanScreen() {
@@ -2125,6 +2185,9 @@
       });
       document.getElementById('admin-label-size').value = '820x520';
       document.getElementById('admin-qr-size').value = '1024';
+
+      document.querySelectorAll('.modal-scroll-body').forEach(bindScrollIsolation);
+      bindScrollIsolation(document.getElementById('admin-reprint-suggestions'));
 
       document.getElementById('header-admin-btn').addEventListener('click', handleAdminButtonClick);
       document.getElementById('header-battery-register-btn').addEventListener('click', openAdminRegisterModal);
