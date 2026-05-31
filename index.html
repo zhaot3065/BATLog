@@ -50,6 +50,11 @@
 
     #qr-reader video {
       border-radius: 0.75rem;
+      object-fit: cover;
+    }
+
+    #scan-panel.scan-panel-active {
+      margin-top: 0;
     }
 
     .section-label {
@@ -1829,15 +1834,12 @@
     }
 
     function showGateScreen() {
-      document.getElementById('scan-panel').classList.add('hidden');
-      document.getElementById('start-scan-button').classList.remove('hidden');
-      document.getElementById('gate-scan-button').classList.remove('hidden');
+      setScanUiActive(false);
       showScreen('gate-screen');
     }
 
     function showScanScreen() {
-      document.getElementById('scan-panel').classList.add('hidden');
-      document.getElementById('start-scan-button').classList.remove('hidden');
+      setScanUiActive(false);
       document.getElementById('gate-scan-button').classList.add('hidden');
       showScreen('scan-screen');
     }
@@ -2004,8 +2006,6 @@
       currentBatteryStartDate = '';
       currentMaxCycles = 0;
       currentCycleCount = 0;
-      document.getElementById('scan-panel').classList.add('hidden');
-      document.getElementById('start-scan-button').classList.remove('hidden');
       document.getElementById('worker-select').selectedIndex = 0;
       resetSubmitButton();
 
@@ -2014,6 +2014,19 @@
       }
 
       showScanScreen();
+    }
+
+    function setScanUiActive(active) {
+      document.getElementById('scan-panel').classList.toggle('hidden', !active);
+      document.getElementById('scan-panel').classList.toggle('scan-panel-active', active);
+      document.getElementById('page-hero').classList.toggle('hidden', active);
+      document.getElementById('gate-intro-card').classList.toggle('hidden', active);
+      document.getElementById('scan-intro-card').classList.toggle('hidden', active);
+
+      if (!active) {
+        document.getElementById('start-scan-button').classList.remove('hidden');
+        document.getElementById('gate-scan-button').classList.remove('hidden');
+      }
     }
 
     function renderBatteryCard(data) {
@@ -2121,7 +2134,7 @@
     }
 
     async function startQrScanner() {
-      document.getElementById('scan-panel').classList.remove('hidden');
+      setScanUiActive(true);
       document.getElementById('start-scan-button').classList.add('hidden');
       document.getElementById('gate-scan-button').classList.add('hidden');
 
@@ -2131,7 +2144,10 @@
 
       const config = {
         fps: 10,
-        qrbox: { width: 250, height: 250 },
+        qrbox: function (viewfinderWidth, viewfinderHeight) {
+          const size = Math.min(viewfinderWidth, viewfinderHeight, 280) * 0.82;
+          return { width: Math.floor(size), height: Math.floor(size) };
+        },
         aspectRatio: 1,
       };
 
@@ -2163,9 +2179,7 @@
         );
       } catch (err) {
         showToast('카메라를 시작할 수 없습니다. 권한을 확인해 주세요.', 'error');
-        document.getElementById('scan-panel').classList.add('hidden');
-        document.getElementById('start-scan-button').classList.remove('hidden');
-        document.getElementById('gate-scan-button').classList.remove('hidden');
+        setScanUiActive(false);
       }
     }
 
@@ -2173,6 +2187,7 @@
       if (html5QrCode && html5QrCode.isScanning) {
         await html5QrCode.stop();
       }
+      setScanUiActive(false);
     }
 
     document.addEventListener('DOMContentLoaded', async function () {
@@ -2375,7 +2390,7 @@
   </header>
 
   <div class="mx-auto flex min-h-[calc(100vh-57px)] max-w-lg flex-col px-4 py-6">
-    <section class="mb-6 text-center">
+    <section id="page-hero" class="mb-6 text-center">
       <p class="section-label text-sm font-semibold text-marine">Battery Management</p>
       <h1 id="page-title" class="mt-2 text-3xl font-bold tracking-tight text-gray-900">배터리 충전 기록</h1>
       <p id="page-subtitle" class="mt-3 text-sm leading-6 text-gray-500">
@@ -2384,18 +2399,24 @@
     </section>
 
     <main class="flex-1">
+      <div id="scan-panel" class="brand-card mb-5 hidden rounded-2xl p-4">
+        <p class="mb-3 text-center text-sm font-semibold text-marine">QR 스캔</p>
+        <div id="qr-reader"></div>
+        <p class="mt-3 text-center text-sm text-gray-500">QR 코드를 화면 중앙에 맞춰 주세요.</p>
+      </div>
+
       <section id="gate-screen" class="hidden space-y-5">
-        <div class="brand-card rounded-2xl p-6 text-center">
+        <div id="gate-intro-card" class="brand-card rounded-2xl p-6 text-center">
           <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-marine-light text-marine">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
             </svg>
           </div>
           <p class="section-label text-sm font-semibold text-marine">QR Access</p>
-          <h2 class="mt-1 text-2xl font-bold text-gray-900">QR로 시작하기</h2>
+          <h2 class="mt-1 text-2xl font-bold text-gray-900">QR로 배터리 확인</h2>
           <p class="mt-2 text-base leading-7 text-gray-500">
-            이 앱은 <strong class="text-gray-700">배터리 QR 코드</strong>를 통해서만 시작할 수 있습니다.<br>
-            주소를 직접 입력하지 말고, 배터리에 부착된 QR을 스캔해 주세요.
+            이 앱은 <strong class="text-gray-700">배터리 QR 코드를 인식</strong>를 통해 배터리의 수명을 추적합니다.<br>
+            배터리에 부착된 QR을 스캔해 주세요.
           </p>
           <button
             id="gate-scan-button"
@@ -2407,7 +2428,7 @@
       </section>
 
       <section id="scan-screen" class="hidden space-y-5">
-        <div class="brand-card rounded-2xl p-6 text-center">
+        <div id="scan-intro-card" class="brand-card rounded-2xl p-6 text-center">
           <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-marine-light text-marine">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -2425,11 +2446,6 @@
           </button>
         </div>
       </section>
-
-      <div id="scan-panel" class="brand-card hidden rounded-2xl p-4">
-        <div id="qr-reader"></div>
-        <p class="mt-4 text-center text-sm text-gray-500">QR 코드를 화면 중앙에 맞춰 주세요.</p>
-      </div>
 
       <section id="battery-screen" class="hidden space-y-5">
         <div class="brand-card rounded-2xl p-6">
