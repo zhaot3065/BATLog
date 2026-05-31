@@ -415,7 +415,10 @@ function findOpenAppearanceReport_(sheet, batteryId) {
 function sendAppearanceReportEmail_(report) {
   const adminEmails = getAdminEmails_();
   if (!adminEmails.length) {
-    return;
+    return {
+      sent: false,
+      error: '등록된 알림 메일이 없습니다. 관리자 설정에서 메일을 추가해 주세요.',
+    };
   }
 
   const subject = '[BATLog] 외관 이상 보고 — ' + report.batteryId;
@@ -433,7 +436,40 @@ function sendAppearanceReportEmail_(report) {
     '점검 완료 후 AppearanceReports 시트의 Status 열을 resolved 로 변경하면 다시 사용할 수 있습니다.',
   ].join('\n');
 
-  MailApp.sendEmail(adminEmails.join(','), subject, body);
+  try {
+    MailApp.sendEmail({
+      to: adminEmails.join(','),
+      subject: subject,
+      body: body,
+    });
+
+    return {
+      sent: true,
+      recipients: adminEmails,
+    };
+  } catch (err) {
+    return {
+      sent: false,
+      error: err.message || String(err),
+    };
+  }
+}
+
+/**
+ * Apps Script 편집기에서 1회 실행해 메일 발송 권한을 승인합니다.
+ * 실행 → 권한 검토 → 허용 → 배포 관리에서 새 버전 배포
+ */
+function authorizeMailPermission() {
+  const result = sendAppearanceReportEmail_({
+    batteryId: 'MAIL-AUTH-TEST',
+    model: '-',
+    worker: '시스템',
+    issues: '권한 테스트',
+    note: 'BATLog 메일 발송 권한 확인용입니다.',
+    timestamp: formatTimestamp_(new Date()),
+  });
+  Logger.log(JSON.stringify(result));
+  return result;
 }
 
 function getAppearanceReportsSheet_() {
@@ -650,7 +686,7 @@ function handleAppearanceReport_(params) {
     'open',
   ]);
 
-  sendAppearanceReportEmail_({
+  const mailResult = sendAppearanceReportEmail_({
     batteryId: batteryId,
     model: battery.model,
     worker: worker,
@@ -671,6 +707,8 @@ function handleAppearanceReport_(params) {
     startDate: battery.startDate,
     maxCycles: battery.maxCycles,
     cycleCount: countCycles_(sheets.logsSheet, batteryId),
+    emailSent: !!mailResult.sent,
+    emailWarning: mailResult.sent ? '' : (mailResult.error || '알림 메일 발송에 실패했습니다.'),
   });
 }
 
@@ -727,6 +765,33 @@ function handleAdminEmailRemove_(params) {
   return jsonResponse_({
     success: true,
     emails: getAdminEmails_(),
+  });
+}
+
+function handleSendTestEmail_(params) {
+  if (!verifyAdminPin_(params.pin)) {
+    return jsonResponse_({ success: false, error: '관리자 PIN이 올바르지 않습니다.' });
+  }
+
+  const mailResult = sendAppearanceReportEmail_({
+    batteryId: 'MAIL-TEST',
+    model: 'BATLog 테스트',
+    worker: '관리자',
+    issues: '메일 발송 테스트',
+    note: '관리자 설정에서 보낸 테스트 메일입니다.',
+    timestamp: formatTimestamp_(new Date()),
+  });
+
+  if (!mailResult.sent) {
+    return jsonResponse_({
+      success: false,
+      error: mailResult.error || '테스트 메일 발송에 실패했습니다.',
+    });
+  }
+
+  return jsonResponse_({
+    success: true,
+    recipients: mailResult.recipients || [],
   });
 }
 
@@ -869,6 +934,10 @@ function doPost(e) {
 
     if (params.action === 'removeadminemail') {
       return handleAdminEmailRemove_(params);
+    }
+
+    if (params.action === 'sendtestemail') {
+      return handleSendTestEmail_(params);
     }
 
     return handleChargingLog_(params);

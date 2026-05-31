@@ -1407,6 +1407,40 @@
       }
     }
 
+    async function sendTestAdminEmail() {
+      if (!adminPinValue) {
+        showToast('관리자 로그인이 필요합니다.', 'error');
+        return;
+      }
+
+      const testBtn = document.getElementById('admin-email-test-button');
+      setButtonBusy(testBtn, true, '발송 중...');
+      showLoading(true, '테스트 메일 발송 중...');
+
+      try {
+        const formData = new URLSearchParams();
+        formData.append('action', 'sendtestemail');
+        formData.append('pin', adminPinValue);
+
+        const response = await fetch(getActiveApiUrl(), {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || '테스트 메일 발송에 실패했습니다.');
+        }
+
+        showToast('테스트 메일을 발송했습니다.', 'success');
+      } catch (err) {
+        showToast(err.message || '테스트 메일 발송에 실패했습니다.', 'error');
+      } finally {
+        setButtonBusy(testBtn, false);
+        showLoading(false);
+      }
+    }
+
     async function submitPinChange() {
       const oldPin = document.getElementById('admin-old-pin-input').value.trim();
       const newPin = document.getElementById('admin-new-pin-input').value.trim();
@@ -2521,6 +2555,10 @@
           cycleCount: Number(data.cycleCount) || currentCycleCount,
           issues: data.issues || getSelectedAppearanceIssueLabels().join(', '),
         }, { isReport: true });
+
+        if (data.emailWarning) {
+          showToast('보고는 저장됐지만 알림 메일 발송 실패: ' + data.emailWarning, 'error');
+        }
       } catch (err) {
         showToast(err.message || '외관 이상 보고에 실패했습니다.', 'error');
         resetSubmitButton();
@@ -2846,6 +2884,7 @@
       });
       document.getElementById('admin-pin-change-button').addEventListener('click', submitPinChange);
       document.getElementById('admin-email-add-button').addEventListener('click', addAdminAlertEmail);
+      document.getElementById('admin-email-test-button').addEventListener('click', sendTestAdminEmail);
       document.getElementById('admin-email-input').addEventListener('keydown', function (event) {
         if (event.key === 'Enter') {
           event.preventDefault();
@@ -3270,6 +3309,14 @@
           </button>
         </div>
         <div id="admin-email-list" class="mt-3 space-y-2"></div>
+        <button
+          id="admin-email-test-button"
+          type="button"
+          class="mt-3 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700"
+        >
+          테스트 메일 보내기
+        </button>
+        <p class="mt-2 text-xs leading-5 text-gray-500">메일이 안 오면 Apps Script 편집기에서 authorizeMailPermission 함수를 1회 실행해 권한을 허용한 뒤, 새 버전으로 다시 배포하세요.</p>
       </div>
 
       <button id="admin-logout-button" type="button" class="mt-5 w-full rounded-xl border border-gray-300 px-4 py-4 text-base font-semibold text-gray-600">로그아웃</button>
