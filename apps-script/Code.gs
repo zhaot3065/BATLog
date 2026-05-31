@@ -373,6 +373,133 @@ function normalizeAppearanceStatus_(status) {
   return 'open';
 }
 
+function getOpenAppearanceReportsForBattery_(reportsSheet, batteryId) {
+  if (!reportsSheet || reportsSheet.getLastRow() < 2) {
+    return [];
+  }
+
+  const normalizedId = normalizeBatteryId_(batteryId);
+  const data = reportsSheet.getDataRange().getValues();
+  const headers = data[0].map(function (header) {
+    return String(header || '').trim().toLowerCase();
+  });
+  const statusCol = headers.indexOf('status');
+  const reports = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const report = buildAppearanceReportRow_(data[i], i + 1, statusCol);
+    if (report.batteryId === normalizedId && report.status === 'open') {
+      reports.push(report);
+    }
+  }
+
+  reports.sort(function (a, b) {
+    return a.rowIndex - b.rowIndex;
+  });
+
+  return reports;
+}
+
+function mergeAppearanceFieldList_(existing, incoming) {
+  const seen = {};
+  const merged = [];
+
+  function addPart(part) {
+    const value = String(part || '').trim();
+    if (!value || seen[value]) {
+      return;
+    }
+    seen[value] = true;
+    merged.push(value);
+  }
+
+  String(existing || '').split(',').forEach(addPart);
+  String(incoming || '').split(',').forEach(addPart);
+  return merged.join(', ');
+}
+
+function mergeAppearanceNote_(existing, incoming) {
+  const current = String(existing || '').trim();
+  const next = String(incoming || '').trim();
+
+  if (!next) {
+    return current;
+  }
+  if (!current) {
+    return next;
+  }
+  if (current.indexOf(next) >= 0) {
+    return current;
+  }
+
+  return current + ' / ' + next;
+}
+
+function saveAppearanceReport_(reportsSheet, batteryId, worker, issuesText, note) {
+  const headers = reportsSheet.getRange(1, 1, 1, APPEARANCE_REPORT_HEADERS.length).getValues()[0];
+  const statusCol = headers.map(function (header) {
+    return String(header || '').trim().toLowerCase();
+  }).indexOf('status');
+
+  if (statusCol < 0) {
+    throw new Error('AppearanceReports 시트에 Status 열이 없습니다.');
+  }
+
+  const openReports = getOpenAppearanceReportsForBattery_(reportsSheet, batteryId);
+  const now = new Date();
+
+  if (!openReports.length) {
+    const timestamp = formatTimestamp_(now);
+    reportsSheet.appendRow([
+      now,
+      batteryId,
+      worker,
+      issuesText,
+      note,
+      'open',
+    ]);
+
+    return {
+      isNew: true,
+      deduplicated: false,
+      timestamp: timestamp,
+      worker: worker,
+      issues: issuesText,
+      note: note,
+    };
+  }
+
+  const primaryRowIndex = openReports[0].rowIndex;
+  const rowValues = reportsSheet.getRange(
+    primaryRowIndex,
+    1,
+    primaryRowIndex,
+    APPEARANCE_REPORT_HEADERS.length
+  ).getValues()[0];
+  const mergedIssues = mergeAppearanceFieldList_(rowValues[3], issuesText);
+  const mergedNote = mergeAppearanceNote_(rowValues[4], note);
+  const keptWorker = String(rowValues[2] || '').trim() || worker;
+
+  reportsSheet.getRange(primaryRowIndex, 3, primaryRowIndex, 5).setValues([[
+    keptWorker,
+    mergedIssues,
+    mergedNote,
+  ]]);
+
+  for (let i = 1; i < openReports.length; i++) {
+    reportsSheet.getRange(openReports[i].rowIndex, statusCol + 1).setValue('resolved');
+  }
+
+  return {
+    isNew: false,
+    deduplicated: true,
+    timestamp: formatReportTimestamp_(rowValues[0]),
+    worker: keptWorker,
+    issues: mergedIssues,
+    note: mergedNote,
+  };
+}
+
 function buildAppearanceReportRow_(row, rowIndex, statusCol) {
   const statusValue = statusCol >= 0 ? row[statusCol] : '';
 
@@ -398,7 +525,6 @@ function getBatteryAppearanceBlock_(reportsSheet, batteryId) {
     return String(header || '').trim().toLowerCase();
   });
   const statusCol = headers.indexOf('status');
-  let openReport = null;
 
   for (let i = data.length - 1; i >= 1; i--) {
     const report = buildAppearanceReportRow_(data[i], i + 1, statusCol);
@@ -413,16 +539,13 @@ function getBatteryAppearanceBlock_(reportsSheet, batteryId) {
         report: report,
       };
     }
-
-    if (report.status === 'open' && !openReport) {
-      openReport = report;
-    }
   }
 
-  if (openReport) {
+  const openReports = getOpenAppearanceReportsForBattery_(reportsSheet, batteryId);
+  if (openReports.length) {
     return {
       blockType: 'open',
-      report: openReport,
+      report: openReports[0],
     };
   }
 
@@ -430,12 +553,8 @@ function getBatteryAppearanceBlock_(reportsSheet, batteryId) {
 }
 
 function findOpenAppearanceReport_(sheet, batteryId) {
-  const block = getBatteryAppearanceBlock_(sheet, batteryId);
-  if (!block || block.blockType !== 'open') {
-    return null;
-  }
-
-  return block.report;
+  const openReports = getOpenAppearanceReportsForBattery_(sheet, batteryId);
+  return openReports.length ? openReports[0] : null;
 }
 
 function listOpenAppearanceReports_(reportsSheet, batteriesSheet) {
@@ -449,13 +568,18 @@ function listOpenAppearanceReports_(reportsSheet, batteriesSheet) {
   });
   const statusCol = headers.indexOf('status');
   const reports = [];
+  const seenBatteryIds = {};
 
   for (let i = 1; i < data.length; i++) {
     const report = buildAppearanceReportRow_(data[i], i + 1, statusCol);
     if (report.status !== 'open') {
       continue;
     }
+    if (seenBatteryIds[report.batteryId]) {
+      continue;
+    }
 
+    seenBatteryIds[report.batteryId] = true;
     const battery = findBattery_(batteriesSheet, report.batteryId);
     reports.push({
       rowIndex: report.rowIndex,
@@ -502,17 +626,15 @@ function updateAppearanceReportStatus_(reportsSheet, rowIndex, nextStatus, batte
 
   reportsSheet.getRange(rowIndex, statusCol + 1).setValue(nextStatus);
 
-  if (nextStatus === 'disposed') {
-    const data = reportsSheet.getDataRange().getValues();
-    for (let i = 1; i < data.length; i++) {
-      if (i + 1 === rowIndex) {
-        continue;
-      }
+  const data = reportsSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (i + 1 === rowIndex) {
+      continue;
+    }
 
-      const otherReport = buildAppearanceReportRow_(data[i], i + 1, statusCol);
-      if (otherReport.batteryId === normalizedId && otherReport.status === 'open') {
-        reportsSheet.getRange(i + 1, statusCol + 1).setValue('disposed');
-      }
+    const otherReport = buildAppearanceReportRow_(data[i], i + 1, statusCol);
+    if (otherReport.batteryId === normalizedId && otherReport.status === 'open') {
+      reportsSheet.getRange(i + 1, statusCol + 1).setValue(nextStatus);
     }
   }
 }
@@ -821,40 +943,46 @@ function handleAppearanceReport_(params) {
     return jsonResponse_({ success: false, error: '등록되지 않은 배터리 ID입니다.' });
   }
 
-  const now = new Date();
-  const timestamp = formatTimestamp_(now);
-  getAppearanceReportsSheet_().appendRow([
-    timestamp,
-    batteryId,
-    worker,
-    issuesText,
-    note,
-    'open',
-  ]);
+  const reportsSheet = getAppearanceReportsSheet_();
+  const appearanceBlock = getBatteryAppearanceBlock_(reportsSheet, batteryId);
+  if (appearanceBlock && appearanceBlock.blockType === 'disposed') {
+    return jsonResponse_({ success: false, error: '폐기처리된 배터리입니다. 사용할 수 없습니다.' });
+  }
 
-  const mailResult = sendAppearanceReportEmail_({
-    batteryId: batteryId,
-    model: battery.model,
-    worker: worker,
-    issues: issuesText,
-    note: note,
-    timestamp: timestamp,
-  });
+  const saved = saveAppearanceReport_(reportsSheet, batteryId, worker, issuesText, note);
+  let mailResult = {
+    sent: false,
+    error: '',
+  };
+
+  if (saved.isNew) {
+    mailResult = sendAppearanceReportEmail_({
+      batteryId: batteryId,
+      model: battery.model,
+      worker: saved.worker,
+      issues: saved.issues,
+      note: saved.note,
+      timestamp: saved.timestamp,
+    });
+  }
 
   return jsonResponse_({
     success: true,
     report: true,
+    deduplicated: saved.deduplicated,
     id: batteryId,
-    worker: worker,
-    issues: issuesText,
-    note: note,
-    timestamp: timestamp,
+    worker: saved.worker,
+    issues: saved.issues,
+    note: saved.note,
+    timestamp: saved.timestamp,
     model: battery.model,
     startDate: battery.startDate,
     maxCycles: battery.maxCycles,
     cycleCount: countCycles_(sheets.logsSheet, batteryId),
     emailSent: !!mailResult.sent,
-    emailWarning: mailResult.sent ? '' : (mailResult.error || '알림 메일 발송에 실패했습니다.'),
+    emailWarning: saved.deduplicated
+      ? ''
+      : (mailResult.sent ? '' : (mailResult.error || '알림 메일 발송에 실패했습니다.')),
   });
 }
 

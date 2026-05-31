@@ -287,7 +287,7 @@
 </head>
 <body class="min-h-screen text-gray-800">
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxIsqr2Cn5P6cdMqSzsY_RPHIX0n0c1hSVCjprTqqsF0INLmp57RTftfjE0jmZQVBS-vA/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbyc8AUVVu9G1-bg7WN76MzE2w_wSQKYNC31L4ppDmOclH_4-1Lc1bbKQBF3MdagZqo4jQ/exec';
 
     // 시트 D열(MaxCycles)이 비어 있을 때 사용할 기본 수명. 0이면 기본값 없음.
     const DEFAULT_MAX_CYCLES = 300;
@@ -2692,6 +2692,8 @@
 
         if (data.emailWarning) {
           showToast('보고는 저장됐지만 알림 메일 발송 실패: ' + data.emailWarning, 'error');
+        } else if (data.deduplicated) {
+          showToast('이미 보고된 배터리입니다. 기존 보고에 반영했습니다.', 'success');
         }
       } catch (err) {
         showToast(err.message || '외관 이상 보고에 실패했습니다.', 'error');
