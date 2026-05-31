@@ -12,6 +12,7 @@ const DEFAULT_ADMIN_PIN = '8842';
 const PIN_PROPERTY_KEY = 'ADMIN_PIN';
 const REGISTER_OPTIONS_KEY = 'REGISTER_OPTIONS';
 const ADMIN_EMAIL_PROPERTY_KEY = 'ADMIN_EMAIL';
+const ADMIN_EMAILS_PROPERTY_KEY = 'ADMIN_EMAILS';
 const APPEARANCE_REPORT_HEADERS = ['Timestamp', 'BatteryID', 'Worker', 'Issues', 'Note', 'Status'];
 
 function jsonResponse_(payload) {
@@ -279,17 +280,67 @@ function getSpreadsheet_() {
   return { batteriesSheet, logsSheet };
 }
 
-function getAdminEmail_() {
-  const stored = PropertiesService.getScriptProperties().getProperty(ADMIN_EMAIL_PROPERTY_KEY);
-  if (stored) {
-    return String(stored).trim();
+function normalizeEmail_(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+function isValidEmail_(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail_(email));
+}
+
+function getAdminEmails_() {
+  const props = PropertiesService.getScriptProperties();
+  const rawList = props.getProperty(ADMIN_EMAILS_PROPERTY_KEY);
+
+  if (rawList) {
+    try {
+      const parsed = JSON.parse(rawList);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map(normalizeEmail_)
+          .filter(function (email) { return email && isValidEmail_(email); });
+      }
+    } catch (err) {
+      // JSON 파싱 실패 시 legacy/fallback 처리
+    }
+  }
+
+  const legacy = props.getProperty(ADMIN_EMAIL_PROPERTY_KEY);
+  if (legacy) {
+    const email = normalizeEmail_(legacy);
+    if (isValidEmail_(email)) {
+      return [email];
+    }
   }
 
   try {
-    return Session.getEffectiveUser().getEmail() || '';
+    const deployer = Session.getEffectiveUser().getEmail();
+    const email = normalizeEmail_(deployer);
+    return isValidEmail_(email) ? [email] : [];
   } catch (err) {
-    return '';
+    return [];
   }
+}
+
+function saveAdminEmails_(emails) {
+  const unique = [];
+
+  emails.forEach(function (email) {
+    const normalized = normalizeEmail_(email);
+    if (normalized && isValidEmail_(normalized) && unique.indexOf(normalized) < 0) {
+      unique.push(normalized);
+    }
+  });
+
+  PropertiesService.getScriptProperties().setProperty(
+    ADMIN_EMAILS_PROPERTY_KEY,
+    JSON.stringify(unique)
+  );
+}
+
+function getAdminEmail_() {
+  const emails = getAdminEmails_();
+  return emails.length ? emails.join(',') : '';
 }
 
 function formatReportTimestamp_(value) {
@@ -362,8 +413,8 @@ function findOpenAppearanceReport_(sheet, batteryId) {
 }
 
 function sendAppearanceReportEmail_(report) {
-  const adminEmail = getAdminEmail_();
-  if (!adminEmail) {
+  const adminEmails = getAdminEmails_();
+  if (!adminEmails.length) {
     return;
   }
 
@@ -382,7 +433,7 @@ function sendAppearanceReportEmail_(report) {
     '점검 완료 후 AppearanceReports 시트의 Status 열을 resolved 로 변경하면 다시 사용할 수 있습니다.',
   ].join('\n');
 
-  MailApp.sendEmail(adminEmail, subject, body);
+  MailApp.sendEmail(adminEmails.join(','), subject, body);
 }
 
 function getAppearanceReportsSheet_() {
@@ -408,6 +459,7 @@ function parseRequestParams_(e) {
     label: '',
     issues: '',
     note: '',
+    email: '',
   };
 
   if (e && e.parameter) {
@@ -428,6 +480,7 @@ function parseRequestParams_(e) {
     params.label = String(e.parameter.label || '').trim();
     params.issues = String(e.parameter.issues || '').trim();
     params.note = String(e.parameter.note || '').trim();
+    params.email = String(e.parameter.email || '').trim();
   }
 
   if (e && e.postData && e.postData.contents) {
@@ -621,6 +674,62 @@ function handleAppearanceReport_(params) {
   });
 }
 
+function handleAdminEmailsGet_(params) {
+  if (!verifyAdminPin_(params.pin)) {
+    return jsonResponse_({ success: false, error: '관리자 PIN이 올바르지 않습니다.' });
+  }
+
+  return jsonResponse_({
+    success: true,
+    emails: getAdminEmails_(),
+  });
+}
+
+function handleAdminEmailAdd_(params) {
+  if (!verifyAdminPin_(params.pin)) {
+    return jsonResponse_({ success: false, error: '관리자 PIN이 올바르지 않습니다.' });
+  }
+
+  const email = normalizeEmail_(params.email);
+  if (!isValidEmail_(email)) {
+    return jsonResponse_({ success: false, error: '올바른 이메일 주소를 입력해 주세요.' });
+  }
+
+  const emails = getAdminEmails_();
+  if (emails.indexOf(email) >= 0) {
+    return jsonResponse_({ success: false, error: '이미 등록된 이메일입니다.' });
+  }
+
+  emails.push(email);
+  saveAdminEmails_(emails);
+
+  return jsonResponse_({
+    success: true,
+    emails: getAdminEmails_(),
+  });
+}
+
+function handleAdminEmailRemove_(params) {
+  if (!verifyAdminPin_(params.pin)) {
+    return jsonResponse_({ success: false, error: '관리자 PIN이 올바르지 않습니다.' });
+  }
+
+  const email = normalizeEmail_(params.email);
+  if (!email) {
+    return jsonResponse_({ success: false, error: '삭제할 이메일이 필요합니다.' });
+  }
+
+  const emails = getAdminEmails_().filter(function (item) {
+    return item !== email;
+  });
+  saveAdminEmails_(emails);
+
+  return jsonResponse_({
+    success: true,
+    emails: getAdminEmails_(),
+  });
+}
+
 function handleChargingLog_(params) {
   const batteryId = normalizeBatteryId_(params.id);
   const worker = String(params.worker || '').trim();
@@ -693,6 +802,10 @@ function doGet(e) {
       return handleBatteryList_(params, sheets.batteriesSheet);
     }
 
+    if (action === 'adminemails') {
+      return handleAdminEmailsGet_(params);
+    }
+
     const batteryId = normalizeBatteryId_(params.id);
 
     if (!batteryId) {
@@ -748,6 +861,14 @@ function doPost(e) {
 
     if (params.action === 'reportappearance') {
       return handleAppearanceReport_(params);
+    }
+
+    if (params.action === 'addadminemail') {
+      return handleAdminEmailAdd_(params);
+    }
+
+    if (params.action === 'removeadminemail') {
+      return handleAdminEmailRemove_(params);
     }
 
     return handleChargingLog_(params);
