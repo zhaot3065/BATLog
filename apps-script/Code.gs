@@ -353,7 +353,168 @@ function formatReportTimestamp_(value) {
 
 function isResolvedAppearanceStatus_(status) {
   const normalized = String(status || '').trim().toLowerCase();
-  return normalized === 'resolved' || normalized === '해결' || normalized === '완료';
+  return normalized === 'resolved' || normalized === '해결' || normalized === '완료' || normalized === '조치완료';
+}
+
+function isDisposedAppearanceStatus_(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  return normalized === 'disposed' || normalized === '폐기';
+}
+
+function normalizeAppearanceStatus_(status) {
+  if (isDisposedAppearanceStatus_(status)) {
+    return 'disposed';
+  }
+
+  if (isResolvedAppearanceStatus_(status)) {
+    return 'resolved';
+  }
+
+  return 'open';
+}
+
+function buildAppearanceReportRow_(row, rowIndex, statusCol) {
+  const statusValue = statusCol >= 0 ? row[statusCol] : '';
+
+  return {
+    rowIndex: rowIndex,
+    timestamp: formatReportTimestamp_(row[0]),
+    batteryId: normalizeBatteryId_(row[1]),
+    worker: String(row[2] || ''),
+    issues: String(row[3] || ''),
+    note: String(row[4] || ''),
+    status: normalizeAppearanceStatus_(statusValue),
+  };
+}
+
+function getBatteryAppearanceBlock_(reportsSheet, batteryId) {
+  if (!reportsSheet || reportsSheet.getLastRow() < 2) {
+    return null;
+  }
+
+  const normalizedId = normalizeBatteryId_(batteryId);
+  const data = reportsSheet.getDataRange().getValues();
+  const headers = data[0].map(function (header) {
+    return String(header || '').trim().toLowerCase();
+  });
+  const statusCol = headers.indexOf('status');
+  let openReport = null;
+
+  for (let i = data.length - 1; i >= 1; i--) {
+    const report = buildAppearanceReportRow_(data[i], i + 1, statusCol);
+
+    if (report.batteryId !== normalizedId) {
+      continue;
+    }
+
+    if (report.status === 'disposed') {
+      return {
+        blockType: 'disposed',
+        report: report,
+      };
+    }
+
+    if (report.status === 'open' && !openReport) {
+      openReport = report;
+    }
+  }
+
+  if (openReport) {
+    return {
+      blockType: 'open',
+      report: openReport,
+    };
+  }
+
+  return null;
+}
+
+function findOpenAppearanceReport_(sheet, batteryId) {
+  const block = getBatteryAppearanceBlock_(sheet, batteryId);
+  if (!block || block.blockType !== 'open') {
+    return null;
+  }
+
+  return block.report;
+}
+
+function listOpenAppearanceReports_(reportsSheet, batteriesSheet) {
+  if (!reportsSheet || reportsSheet.getLastRow() < 2) {
+    return [];
+  }
+
+  const data = reportsSheet.getDataRange().getValues();
+  const headers = data[0].map(function (header) {
+    return String(header || '').trim().toLowerCase();
+  });
+  const statusCol = headers.indexOf('status');
+  const reports = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const report = buildAppearanceReportRow_(data[i], i + 1, statusCol);
+    if (report.status !== 'open') {
+      continue;
+    }
+
+    const battery = findBattery_(batteriesSheet, report.batteryId);
+    reports.push({
+      rowIndex: report.rowIndex,
+      timestamp: report.timestamp,
+      batteryId: report.batteryId,
+      model: battery ? battery.model : '',
+      worker: report.worker,
+      issues: report.issues,
+      note: report.note,
+      status: report.status,
+    });
+  }
+
+  reports.reverse();
+  return reports;
+}
+
+function updateAppearanceReportStatus_(reportsSheet, rowIndex, nextStatus, batteryId) {
+  const normalizedId = normalizeBatteryId_(batteryId);
+  const lastRow = reportsSheet.getLastRow();
+  const headers = reportsSheet.getRange(1, 1, 1, APPEARANCE_REPORT_HEADERS.length).getValues()[0];
+  const statusCol = headers.map(function (header) {
+    return String(header || '').trim().toLowerCase();
+  }).indexOf('status');
+
+  if (statusCol < 0) {
+    throw new Error('AppearanceReports 시트에 Status 열이 없습니다.');
+  }
+
+  if (rowIndex < 2 || rowIndex > lastRow) {
+    throw new Error('유효하지 않은 보고 행입니다.');
+  }
+
+  const rowValues = reportsSheet.getRange(rowIndex, 1, rowIndex, APPEARANCE_REPORT_HEADERS.length).getValues()[0];
+  const rowBatteryId = normalizeBatteryId_(rowValues[1]);
+  if (rowBatteryId !== normalizedId) {
+    throw new Error('보고 정보가 일치하지 않습니다.');
+  }
+
+  const currentStatus = normalizeAppearanceStatus_(rowValues[statusCol]);
+  if (currentStatus !== 'open') {
+    throw new Error('이미 처리된 보고입니다.');
+  }
+
+  reportsSheet.getRange(rowIndex, statusCol + 1).setValue(nextStatus);
+
+  if (nextStatus === 'disposed') {
+    const data = reportsSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (i + 1 === rowIndex) {
+        continue;
+      }
+
+      const otherReport = buildAppearanceReportRow_(data[i], i + 1, statusCol);
+      if (otherReport.batteryId === normalizedId && otherReport.status === 'open') {
+        reportsSheet.getRange(i + 1, statusCol + 1).setValue('disposed');
+      }
+    }
+  }
 }
 
 function ensureAppearanceReportsSheet_() {
@@ -374,42 +535,6 @@ function ensureAppearanceReportsSheet_() {
   }
 
   return sheet;
-}
-
-function findOpenAppearanceReport_(sheet, batteryId) {
-  if (!sheet || sheet.getLastRow() < 2) {
-    return null;
-  }
-
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0].map(function (header) {
-    return String(header || '').trim().toLowerCase();
-  });
-  const statusCol = headers.indexOf('status');
-
-  for (let i = data.length - 1; i >= 1; i--) {
-    const row = data[i];
-    const rowBatteryId = normalizeBatteryId_(row[1]);
-
-    if (rowBatteryId !== batteryId) {
-      continue;
-    }
-
-    const status = statusCol >= 0 ? row[statusCol] : '';
-    if (isResolvedAppearanceStatus_(status)) {
-      continue;
-    }
-
-    return {
-      timestamp: formatReportTimestamp_(row[0]),
-      batteryId: rowBatteryId,
-      worker: String(row[2] || ''),
-      issues: String(row[3] || ''),
-      note: String(row[4] || ''),
-    };
-  }
-
-  return null;
 }
 
 function sendAppearanceReportEmail_(report) {
@@ -457,19 +582,36 @@ function sendAppearanceReportEmail_(report) {
 
 /**
  * Apps Script 편집기에서 1회 실행해 메일 발송 권한을 승인합니다.
+ * try-catch 없이 MailApp을 호출해야 권한 검토 창이 뜹니다.
  * 실행 → 권한 검토 → 허용 → 배포 관리에서 새 버전 배포
  */
 function authorizeMailPermission() {
-  const result = sendAppearanceReportEmail_({
-    batteryId: 'MAIL-AUTH-TEST',
-    model: '-',
-    worker: '시스템',
-    issues: '권한 테스트',
-    note: 'BATLog 메일 발송 권한 확인용입니다.',
-    timestamp: formatTimestamp_(new Date()),
+  const quota = MailApp.getRemainingDailyQuota();
+  Logger.log('메일 권한 확인 OK. 오늘 남은 발송 한도: ' + quota);
+
+  const adminEmails = getAdminEmails_();
+  if (!adminEmails.length) {
+    Logger.log('알림 메일 주소가 없습니다. BATLog 관리자 설정에서 메일을 추가한 뒤 테스트 메일을 보내세요.');
+    return {
+      authorized: true,
+      sent: false,
+      quota: quota,
+    };
+  }
+
+  MailApp.sendEmail({
+    to: adminEmails.join(','),
+    subject: '[BATLog] 메일 권한 테스트',
+    body: 'BATLog 메일 발송 권한 확인용입니다.\n\n이 메일이 보이면 웹앱에서도 메일 발송이 가능합니다.',
   });
-  Logger.log(JSON.stringify(result));
-  return result;
+
+  Logger.log('테스트 메일 발송 완료: ' + adminEmails.join(', '));
+  return {
+    authorized: true,
+    sent: true,
+    quota: quota,
+    recipients: adminEmails,
+  };
 }
 
 function getAppearanceReportsSheet_() {
@@ -496,6 +638,8 @@ function parseRequestParams_(e) {
     issues: '',
     note: '',
     email: '',
+    rowIndex: '',
+    batteryId: '',
   };
 
   if (e && e.parameter) {
@@ -517,6 +661,8 @@ function parseRequestParams_(e) {
     params.issues = String(e.parameter.issues || '').trim();
     params.note = String(e.parameter.note || '').trim();
     params.email = String(e.parameter.email || '').trim();
+    params.rowIndex = String(e.parameter.rowIndex || e.parameter.rowindex || '').trim();
+    params.batteryId = String(e.parameter.batteryId || e.parameter.batteryid || '').trim();
   }
 
   if (e && e.postData && e.postData.contents) {
@@ -795,6 +941,46 @@ function handleSendTestEmail_(params) {
   });
 }
 
+function handleAppearanceReportsList_(params, sheets) {
+  if (!verifyAdminPin_(params.pin)) {
+    return jsonResponse_({ success: false, error: '관리자 PIN이 올바르지 않습니다.' });
+  }
+
+  return jsonResponse_({
+    success: true,
+    reports: listOpenAppearanceReports_(getAppearanceReportsSheet_(), sheets.batteriesSheet),
+  });
+}
+
+function handleAppearanceReportAction_(params, nextStatus) {
+  if (!verifyAdminPin_(params.pin)) {
+    return jsonResponse_({ success: false, error: '관리자 PIN이 올바르지 않습니다.' });
+  }
+
+  const rowIndex = Number(params.rowIndex);
+  const batteryId = normalizeBatteryId_(params.id || params.batteryId);
+
+  if (!Number.isFinite(rowIndex) || rowIndex < 2) {
+    return jsonResponse_({ success: false, error: '유효하지 않은 보고 행입니다.' });
+  }
+
+  if (!batteryId) {
+    return jsonResponse_({ success: false, error: 'Battery ID가 필요합니다.' });
+  }
+
+  try {
+    updateAppearanceReportStatus_(getAppearanceReportsSheet_(), rowIndex, nextStatus, batteryId);
+  } catch (err) {
+    return jsonResponse_({ success: false, error: err.message || String(err) });
+  }
+
+  return jsonResponse_({
+    success: true,
+    status: nextStatus,
+    batteryId: batteryId,
+  });
+}
+
 function handleChargingLog_(params) {
   const batteryId = normalizeBatteryId_(params.id);
   const worker = String(params.worker || '').trim();
@@ -814,11 +1000,15 @@ function handleChargingLog_(params) {
     return jsonResponse_({ success: false, error: '등록되지 않은 배터리 ID입니다.' });
   }
 
-  const openAppearanceReport = findOpenAppearanceReport_(getAppearanceReportsSheet_(), batteryId);
-  if (openAppearanceReport) {
+  const appearanceBlock = getBatteryAppearanceBlock_(getAppearanceReportsSheet_(), batteryId);
+  if (appearanceBlock) {
+    const errorMessage = appearanceBlock.blockType === 'disposed'
+      ? '폐기처리된 배터리입니다. 사용·충전할 수 없습니다.'
+      : '외관 이상이 보고된 배터리입니다. 사용·충전할 수 없습니다.';
+
     return jsonResponse_({
       success: false,
-      error: '외관 이상이 보고된 배터리입니다. 사용·충전할 수 없습니다.',
+      error: errorMessage,
     });
   }
 
@@ -871,6 +1061,10 @@ function doGet(e) {
       return handleAdminEmailsGet_(params);
     }
 
+    if (action === 'appearancereports') {
+      return handleAppearanceReportsList_(params, sheets);
+    }
+
     const batteryId = normalizeBatteryId_(params.id);
 
     if (!batteryId) {
@@ -884,7 +1078,7 @@ function doGet(e) {
     }
 
     const cycleCount = countCycles_(sheets.logsSheet, batteryId);
-    const openAppearanceReport = findOpenAppearanceReport_(getAppearanceReportsSheet_(), batteryId);
+    const appearanceBlock = getBatteryAppearanceBlock_(getAppearanceReportsSheet_(), batteryId);
 
     return jsonResponse_({
       success: true,
@@ -893,13 +1087,14 @@ function doGet(e) {
       startDate: battery.startDate,
       maxCycles: battery.maxCycles,
       cycleCount: cycleCount,
-      appearanceReport: openAppearanceReport
+      appearanceReport: appearanceBlock
         ? {
           active: true,
-          timestamp: openAppearanceReport.timestamp,
-          worker: openAppearanceReport.worker,
-          issues: openAppearanceReport.issues,
-          note: openAppearanceReport.note,
+          blockType: appearanceBlock.blockType,
+          timestamp: appearanceBlock.report.timestamp,
+          worker: appearanceBlock.report.worker,
+          issues: appearanceBlock.report.issues,
+          note: appearanceBlock.report.note,
         }
         : { active: false },
     });
@@ -938,6 +1133,14 @@ function doPost(e) {
 
     if (params.action === 'sendtestemail') {
       return handleSendTestEmail_(params);
+    }
+
+    if (params.action === 'resolveappearance') {
+      return handleAppearanceReportAction_(params, 'resolved');
+    }
+
+    if (params.action === 'disposeappearance') {
+      return handleAppearanceReportAction_(params, 'disposed');
     }
 
     return handleChargingLog_(params);

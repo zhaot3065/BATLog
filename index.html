@@ -287,7 +287,7 @@
 </head>
 <body class="min-h-screen text-gray-800">
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbzO3twQ7TWFpGHHVBLxTTaUeg9-VHUfv5biGzlQoOkpGHV4gLgVIga_HSdPl3ZDO55x2g/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxIsqr2Cn5P6cdMqSzsY_RPHIX0n0c1hSVCjprTqqsF0INLmp57RTftfjE0jmZQVBS-vA/exec';
 
     // 시트 D열(MaxCycles)이 비어 있을 때 사용할 기본 수명. 0이면 기본값 없음.
     const DEFAULT_MAX_CYCLES = 300;
@@ -1441,6 +1441,113 @@
       }
     }
 
+    function renderAdminAppearanceList(reports) {
+      const list = document.getElementById('admin-appearance-list');
+
+      if (!reports.length) {
+        list.innerHTML = '<p class="rounded-xl bg-gray-50 px-4 py-5 text-center text-sm text-gray-500">현재 조치 대기 중인 이상 보고가 없습니다.</p>';
+        return;
+      }
+
+      list.innerHTML = reports.map(function (report) {
+        return '<div class="rounded-xl border border-gray-200 bg-white p-4">'
+          + '<div class="flex items-start justify-between gap-3">'
+          + '<div class="min-w-0">'
+          + '<p class="text-lg font-bold tracking-wide text-gray-900">' + escapeHtml(report.batteryId) + '</p>'
+          + '<p class="mt-1 text-sm text-gray-600">' + escapeHtml(report.model || '-') + '</p>'
+          + '</div>'
+          + '<span class="shrink-0 rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-[#eb3949]">조치 대기</span>'
+          + '</div>'
+          + '<dl class="mt-3 space-y-1 text-sm text-gray-700">'
+          + '<div><dt class="inline text-gray-500">보고 시각: </dt><dd class="inline">' + escapeHtml(report.timestamp || '-') + '</dd></div>'
+          + '<div><dt class="inline text-gray-500">작업자: </dt><dd class="inline">' + escapeHtml(report.worker || '-') + '</dd></div>'
+          + '<div><dt class="inline text-gray-500">이상 항목: </dt><dd class="inline">' + escapeHtml(report.issues || '-') + '</dd></div>'
+          + (report.note ? '<div><dt class="inline text-gray-500">특이사항: </dt><dd class="inline">' + escapeHtml(report.note) + '</dd></div>' : '')
+          + '</dl>'
+          + '<div class="mt-4 grid grid-cols-2 gap-2">'
+          + '<button type="button" class="admin-appearance-resolve-button rounded-xl border border-marine/30 bg-marine-light px-3 py-3 text-sm font-bold text-marine" data-row-index="'
+          + report.rowIndex + '" data-battery-id="' + encodeURIComponent(report.batteryId) + '">조치완료</button>'
+          + '<button type="button" class="admin-appearance-dispose-button rounded-xl border border-gray-700 bg-gray-900 px-3 py-3 text-sm font-bold text-white" data-row-index="'
+          + report.rowIndex + '" data-battery-id="' + encodeURIComponent(report.batteryId) + '">폐기</button>'
+          + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    async function loadAdminAppearanceReports() {
+      if (!adminPinValue) {
+        renderAdminAppearanceList([]);
+        return;
+      }
+
+      showLoading(true, '이상 보고 목록 불러오는 중...');
+      try {
+        const url = getActiveApiUrl()
+          + '?action=appearancereports&pin=' + encodeURIComponent(adminPinValue);
+        const response = await fetch(url, { method: 'GET' });
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || '이상 보고 목록을 불러오지 못했습니다.');
+        }
+
+        renderAdminAppearanceList(data.reports || []);
+      } catch (err) {
+        renderAdminAppearanceList([]);
+        showToast(err.message || '이상 보고 목록을 불러오지 못했습니다.', 'error');
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function openAdminAppearanceListModal() {
+      closeModal('admin-pin-modal');
+      openModal('admin-appearance-list-modal');
+      loadAdminAppearanceReports();
+    }
+
+    async function submitAppearanceReportAction(rowIndex, batteryId, action) {
+      if (!adminPinValue) {
+        showToast('관리자 로그인이 필요합니다.', 'error');
+        return;
+      }
+
+      const actionLabel = action === 'disposeappearance' ? '폐기' : '조치완료';
+      const confirmMessage = action === 'disposeappearance'
+        ? '이 배터리를 폐기 처리할까요?\n이후 QR 스캔 시 사용할 수 없습니다.'
+        : '조치 완료로 변경할까요?\n이 배터리는 다시 충전 기록할 수 있습니다.';
+
+      if (!confirm(confirmMessage)) {
+        return;
+      }
+
+      showLoading(true, actionLabel + ' 처리 중...');
+      try {
+        const formData = new URLSearchParams();
+        formData.append('action', action);
+        formData.append('pin', adminPinValue);
+        formData.append('rowIndex', String(rowIndex));
+        formData.append('id', batteryId);
+
+        const response = await fetch(getActiveApiUrl(), {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || actionLabel + ' 처리에 실패했습니다.');
+        }
+
+        showToast(actionLabel + ' 처리되었습니다.', 'success');
+        await loadAdminAppearanceReports();
+      } catch (err) {
+        showToast(err.message || actionLabel + ' 처리에 실패했습니다.', 'error');
+      } finally {
+        showLoading(false);
+      }
+    }
+
     async function submitPinChange() {
       const oldPin = document.getElementById('admin-old-pin-input').value.trim();
       const newPin = document.getElementById('admin-new-pin-input').value.trim();
@@ -2412,23 +2519,50 @@
       const actionCard = document.getElementById('battery-action-card');
       const blockedRescanButton = document.getElementById('appearance-block-rescan-button');
       const statusBadge = document.getElementById('battery-status-badge');
+      const titleEl = document.getElementById('appearance-block-title');
+      const leadEl = document.getElementById('appearance-block-lead');
+      const messageEl = document.getElementById('appearance-block-message');
 
       if (batteryAppearanceBlocked) {
-        const details = [
-          '보고 시각: ' + (report.timestamp || '-'),
-          '보고 작업자: ' + (report.worker || '-'),
-          '이상 항목: ' + (report.issues || '-'),
-        ];
-        if (report.note) {
-          details.push('특이사항: ' + report.note);
+        const isDisposed = report.blockType === 'disposed';
+
+        titleEl.textContent = isDisposed ? '폐기처리된 배터리' : '외관 이상 보고된 배터리';
+        leadEl.textContent = isDisposed
+          ? '폐기처리된 배터리입니다. 사용할 수 없습니다.'
+          : '이 배터리는 사용·충전하지 마세요. 관리자 점검 후 해제됩니다.';
+
+        if (isDisposed) {
+          messageEl.classList.add('hidden');
+        } else {
+          const details = [
+            '보고 시각: ' + (report.timestamp || '-'),
+            '보고 작업자: ' + (report.worker || '-'),
+            '이상 항목: ' + (report.issues || '-'),
+          ];
+          if (report.note) {
+            details.push('특이사항: ' + report.note);
+          }
+          messageEl.textContent = details.join('\n');
+          messageEl.classList.remove('hidden');
         }
 
-        document.getElementById('appearance-block-message').textContent = details.join('\n');
+        alertBox.className = isDisposed
+          ? 'brand-card rounded-2xl border-2 border-gray-700 bg-gray-100 p-4'
+          : 'brand-card rounded-2xl border-2 border-[#eb3949] bg-red-50 p-4';
+        titleEl.className = isDisposed
+          ? 'text-lg font-bold text-gray-900'
+          : 'text-lg font-bold text-[#eb3949]';
+        leadEl.className = isDisposed
+          ? 'mt-2 text-sm font-semibold leading-6 text-gray-800'
+          : 'mt-2 text-sm font-semibold leading-6 text-red-900';
+
         alertBox.classList.remove('hidden');
         actionCard.classList.add('hidden');
         blockedRescanButton.classList.remove('hidden');
-        statusBadge.className = 'rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-[#eb3949]';
-        statusBadge.textContent = '사용 중지';
+        statusBadge.className = isDisposed
+          ? 'rounded-full bg-gray-200 px-3 py-1 text-xs font-semibold text-gray-800'
+          : 'rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-[#eb3949]';
+        statusBadge.textContent = isDisposed ? '폐기' : '사용 중지';
         return;
       }
 
@@ -2883,6 +3017,30 @@
         }
       });
       document.getElementById('admin-pin-change-button').addEventListener('click', submitPinChange);
+      document.getElementById('admin-appearance-list-open-button').addEventListener('click', openAdminAppearanceListModal);
+      document.getElementById('admin-appearance-list-close-button').addEventListener('click', function () {
+        closeModal('admin-appearance-list-modal');
+      });
+      document.getElementById('admin-appearance-list').addEventListener('click', function (event) {
+        const resolveButton = event.target.closest('.admin-appearance-resolve-button');
+        if (resolveButton) {
+          submitAppearanceReportAction(
+            Number(resolveButton.dataset.rowIndex),
+            decodeURIComponent(resolveButton.dataset.batteryId || ''),
+            'resolveappearance'
+          );
+          return;
+        }
+
+        const disposeButton = event.target.closest('.admin-appearance-dispose-button');
+        if (disposeButton) {
+          submitAppearanceReportAction(
+            Number(disposeButton.dataset.rowIndex),
+            decodeURIComponent(disposeButton.dataset.batteryId || ''),
+            'disposeappearance'
+          );
+        }
+      });
       document.getElementById('admin-email-add-button').addEventListener('click', addAdminAlertEmail);
       document.getElementById('admin-email-test-button').addEventListener('click', sendTestAdminEmail);
       document.getElementById('admin-email-input').addEventListener('keydown', function (event) {
@@ -3141,8 +3299,8 @@
         </div>
 
         <div id="appearance-block-alert" class="hidden brand-card rounded-2xl border-2 border-[#eb3949] bg-red-50 p-4">
-          <p class="text-lg font-bold text-[#eb3949]">외관 이상 보고된 배터리</p>
-          <p class="mt-2 text-sm font-semibold leading-6 text-red-900">이 배터리는 사용·충전하지 마세요. 관리자 점검 후 해제됩니다.</p>
+          <p id="appearance-block-title" class="text-lg font-bold text-[#eb3949]">외관 이상 보고된 배터리</p>
+          <p id="appearance-block-lead" class="mt-2 text-sm font-semibold leading-6 text-red-900">이 배터리는 사용·충전하지 마세요. 관리자 점검 후 해제됩니다.</p>
           <pre id="appearance-block-message" class="mt-3 whitespace-pre-wrap rounded-xl bg-white/80 p-3 text-sm leading-6 text-gray-800"></pre>
           <button
             id="appearance-block-rescan-button"
@@ -3289,6 +3447,18 @@
       <button id="admin-pin-change-button" type="button" class="brand-btn-primary mt-5 w-full rounded-xl px-4 py-4 text-base font-bold text-white">PIN 변경</button>
 
       <div class="mt-6 border-t border-gray-200 pt-5">
+        <p class="text-sm font-semibold text-gray-700">외관 이상 보고</p>
+        <p class="mt-1 text-xs leading-5 text-gray-500">조치 대기 중인 이상 보고 배터리를 확인하고 조치완료·폐기 처리합니다.</p>
+        <button
+          id="admin-appearance-list-open-button"
+          type="button"
+          class="mt-3 w-full rounded-xl border border-[#eb3949]/30 bg-red-50 px-4 py-3.5 text-sm font-bold text-[#eb3949]"
+        >
+          이상 보고 배터리
+        </button>
+      </div>
+
+      <div class="mt-6 border-t border-gray-200 pt-5">
         <p class="text-sm font-semibold text-gray-700">외관 이상 알림 메일</p>
         <p class="mt-1 text-xs leading-5 text-gray-500">외관 이상 보고 시 아래 주소로 자동 메일이 발송됩니다.</p>
         <div class="mt-3 flex gap-2">
@@ -3316,11 +3486,32 @@
         >
           테스트 메일 보내기
         </button>
-        <p class="mt-2 text-xs leading-5 text-gray-500">메일이 안 오면 Apps Script 편집기에서 authorizeMailPermission 함수를 1회 실행해 권한을 허용한 뒤, 새 버전으로 다시 배포하세요.</p>
+        <p class="mt-2 text-xs leading-5 text-gray-500">메일이 안 오면 Apps Script 편집기에서 authorizeMailPermission 함수를 1회 실행하세요. 실행 시 <strong>권한 검토</strong> 창이 뜨면 Gmail/메일 보내기를 허용합니다. (실행 로그에 permission 오류만 보이고 창이 안 떴다면 Code.gs를 최신으로 붙여넣은 뒤 다시 실행하세요.) 허용 후 <strong>배포 → 새 버전 배포</strong>가 필요합니다.</p>
       </div>
 
       <button id="admin-logout-button" type="button" class="mt-5 w-full rounded-xl border border-gray-300 px-4 py-4 text-base font-semibold text-gray-600">로그아웃</button>
       <button id="admin-pin-cancel-button" type="button" class="mt-3 w-full rounded-xl px-4 py-3 text-sm text-gray-500">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="admin-appearance-list-modal" class="app-modal-overlay fixed inset-0 z-50 hidden flex bg-gray-900/40 backdrop-blur-sm">
+    <div class="brand-card modal-scroll-shell modal-scroll-shell--tall w-full max-w-md rounded-2xl">
+      <div class="modal-scroll-body">
+        <p class="section-label text-sm font-semibold text-[#eb3949]">Appearance</p>
+        <h2 class="mt-1 text-2xl font-bold text-gray-900">이상 보고 배터리</h2>
+        <p class="mt-2 text-sm leading-6 text-gray-500">
+          조치 대기(open) 상태의 외관 이상 보고입니다.<br>
+          조치완료 시 다시 사용할 수 있고, 폐기 시 QR 스캔에서 영구 차단됩니다.
+        </p>
+        <div id="admin-appearance-list" class="mt-5 space-y-3"></div>
+        <button
+          id="admin-appearance-list-close-button"
+          type="button"
+          class="mt-5 w-full rounded-xl border border-gray-300 px-4 py-4 text-base font-semibold text-gray-600"
+        >
+          닫기
+        </button>
       </div>
     </div>
   </div>
