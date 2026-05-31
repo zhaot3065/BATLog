@@ -65,7 +65,7 @@ git push
 
 ## 4. QR 코드
 
-권장: `https://zhaot3065.github.io/BATLog/?id=LPO-7S-35-001`
+권장: `https://userID.github.io/BATLog/?id=LPO-7S-35-001`
 
 관리자 **QR 재출력**에서 PNG 다운로드.
 
