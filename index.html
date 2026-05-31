@@ -1897,6 +1897,29 @@
       }
     }
 
+    function normalizeBatteryIdInput(value) {
+      const raw = String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+      if (!raw) {
+        return '';
+      }
+
+      if (/^BT\d{3,}$/.test(raw)) {
+        return raw;
+      }
+
+      if (/^[A-Z]{2,3}-\d+S-\d+-\d{3,}$/.test(raw)) {
+        return raw;
+      }
+
+      const compact = raw.replace(/-/g, '');
+      const match = compact.match(/^([A-Z]{2,3})(\d+)S(\d+)(\d{3,})$/);
+      if (match) {
+        return match[1] + '-' + match[2] + 'S-' + match[3] + '-' + match[4];
+      }
+
+      return raw;
+    }
+
     function extractBatteryId(rawValue) {
       if (!rawValue) {
         return null;
@@ -1908,7 +1931,7 @@
         const url = new URL(value);
         const idFromQuery = url.searchParams.get('id');
         if (idFromQuery) {
-          return idFromQuery.trim().toUpperCase();
+          return normalizeBatteryIdInput(idFromQuery);
         }
       } catch (err) {
         // URL이 아니면 아래 규칙으로 처리
@@ -1916,12 +1939,12 @@
 
       const queryMatch = value.match(/[?&]id=([^&#]+)/i);
       if (queryMatch) {
-        return decodeURIComponent(queryMatch[1]).trim().toUpperCase();
+        return normalizeBatteryIdInput(decodeURIComponent(queryMatch[1]));
       }
 
       const idMatch = value.match(/\b([A-Z]{2,3}-\d+S-\d+-\d{3,})\b/i);
       if (idMatch) {
-        return idMatch[1].toUpperCase();
+        return normalizeBatteryIdInput(idMatch[1]);
       }
 
       const legacyMatch = value.match(/\b(BT\d+)\b/i);
@@ -1930,7 +1953,7 @@
       }
 
       if (/^[A-Za-z0-9_-]{4,32}$/.test(value)) {
-        return value.toUpperCase();
+        return normalizeBatteryIdInput(value);
       }
 
       return null;
@@ -1947,7 +1970,7 @@
         try {
           const payload = JSON.parse(value);
           return {
-            batteryId: payload.id ? String(payload.id).trim().toUpperCase() : null,
+            batteryId: payload.id ? normalizeBatteryIdInput(payload.id) : null,
             apiUrl: normalizeApiUrl(payload.api || payload.apiUrl || payload.url),
           };
         } catch (err) {
@@ -1960,7 +1983,7 @@
         if (parts.length >= 3) {
           return {
             apiUrl: normalizeApiUrl(parts[1]),
-            batteryId: parts[2].trim().toUpperCase(),
+            batteryId: normalizeBatteryIdInput(parts[2]),
           };
         }
       }
@@ -1972,7 +1995,7 @@
           const idFromQuery = url.searchParams.get('id');
           return {
             apiUrl: normalizeApiUrl(value),
-            batteryId: idFromQuery ? idFromQuery.trim().toUpperCase() : null,
+            batteryId: idFromQuery ? normalizeBatteryIdInput(idFromQuery) : null,
           };
         }
 
@@ -1981,14 +2004,14 @@
         if (apiParam && idParam) {
           return {
             apiUrl: normalizeApiUrl(decodeURIComponent(apiParam)),
-            batteryId: idParam.trim().toUpperCase(),
+            batteryId: normalizeBatteryIdInput(idParam),
           };
         }
 
         if (idParam) {
           return {
             apiUrl: null,
-            batteryId: idParam.trim().toUpperCase(),
+            batteryId: normalizeBatteryIdInput(idParam),
           };
         }
       } catch (err) {
@@ -2000,7 +2023,7 @@
       if (apiMatch && idMatch) {
         return {
           apiUrl: normalizeApiUrl(decodeURIComponent(apiMatch[1])),
-          batteryId: decodeURIComponent(idMatch[1]).trim().toUpperCase(),
+          batteryId: normalizeBatteryIdInput(decodeURIComponent(idMatch[1])),
         };
       }
 
@@ -2911,7 +2934,7 @@
     }
 
     async function submitIdLookup() {
-      const batteryId = document.getElementById('id-lookup-input').value.trim().toUpperCase();
+      const batteryId = normalizeBatteryIdInput(document.getElementById('id-lookup-input').value);
       if (!batteryId) {
         showToast('Battery ID를 입력해 주세요.', 'error');
         return;

@@ -182,7 +182,26 @@ function handleAddRegisterOption_(params) {
 }
 
 function normalizeBatteryId_(value) {
-  return String(value || '').trim().toUpperCase();
+  const raw = String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+  if (!raw) {
+    return '';
+  }
+
+  if (/^BT\d{3,}$/.test(raw)) {
+    return raw;
+  }
+
+  if (/^[A-Z]{2,3}-\d+S-\d+-\d{3,}$/.test(raw)) {
+    return raw;
+  }
+
+  const compact = raw.replace(/-/g, '');
+  const match = compact.match(/^([A-Z]{2,3})(\d+)S(\d+)(\d{3,})$/);
+  if (match) {
+    return match[1] + '-' + match[2] + 'S-' + match[3] + '-' + match[4];
+  }
+
+  return raw;
 }
 
 function isValidBatteryId_(batteryId) {
