@@ -332,16 +332,16 @@
     };
 
     const LABEL_SIZE_OPTIONS = [
-      { value: '640x400', label: '640×400 — 라벨 전체 (가로형)' },
-      { value: '820x520', label: '820×520 — 라벨 전체 (권장)' },
-      { value: '1200x760', label: '1200×760 — 라벨 전체 (고해상도)' },
-      { value: '1600x1000', label: '1600×1000 — 라벨 전체 (인쇄용)' },
+      { value: '640x400', label: '640×400px' },
+      { value: '820x520', label: '820×520px(Default)' },
+      { value: '1200x760', label: '1200×760px' },
+      { value: '1600x1000', label: '1600×1000px' },
     ];
 
     const QR_SIZE_OPTIONS = [
-      { value: '512', label: '512×512px — QR만 (정사각형)' },
-      { value: '1024', label: '1024×1024px — QR만 (정사각형)' },
-      { value: '2048', label: '2048×2048px — QR만 (정사각형)' },
+      { value: '512', label: '512×512px' },
+      { value: '1024', label: '1024×1024px(Default)' },
+      { value: '2048', label: '2048×2048px' },
     ];
 
     const WORKER_NEW_VALUE = '__new__';
@@ -3925,14 +3925,14 @@
       <p class="mt-2 text-sm text-gray-500">QR 코드는 항상 <strong>정사각형</strong>입니다. 아래 두 가지를 구분하세요.</p>
       <ul class="mt-2 list-inside list-disc text-sm text-gray-500">
         <li><strong>QR URL 복사</strong> — 라벨·QR 앱에 URL 붙여넣기 (권장)</li>
-        <li><strong>라벨 PNG</strong> — ID·모델·QR이 함께 있는 <em>가로형 스티커</em> (820×520 등)</li>
-        <li><strong>QR만 PNG</strong> — QR 코드만 <em>정사각형</em> (512×512 등)</li>
+        <li><strong>라벨 PNG</strong> — ID·배터리 정보·QR이 함께 있는 방식</li>
+        <li><strong>QR만 PNG</strong> — QR 코드만</li>
       </ul>
 
-      <label for="admin-label-size" class="mt-4 block text-sm font-semibold text-gray-700">라벨 PNG — 스티커 전체 크기 (가로형)</label>
+      <label for="admin-label-size" class="mt-4 block text-sm font-semibold text-gray-700">라벨 PNG — 크기 선택</label>
       <select id="admin-label-size" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"></select>
 
-      <label for="admin-qr-size" class="mt-4 block text-sm font-semibold text-gray-700">QR만 PNG — 정사각형 한 변 길이</label>
+      <label for="admin-qr-size" class="mt-4 block text-sm font-semibold text-gray-700">QR만 PNG — 크기 선택</label>
       <select id="admin-qr-size" class="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base outline-none focus:border-marine focus:ring-2 focus:ring-marine/20"></select>
 
       <div id="admin-label-preview" class="mt-5 overflow-hidden rounded-xl bg-gray-50 p-3"></div>
